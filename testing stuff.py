@@ -126,8 +126,6 @@ backbone = get_backbone()
 
 backbone.summary()
 
-my_net = RetinaNet(10, backbone)
-
-my_net.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), optimizer=keras.optimizers.RMSprop())
-
-my_net.summary()
+# my_net = RetinaNet(10, backbone)
+#
+# my_net.summary()
