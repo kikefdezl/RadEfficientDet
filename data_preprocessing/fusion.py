@@ -1,18 +1,54 @@
+# default libraries
+import os
+
+# nuscenes libraries
 from nuscenes.nuscenes import NuScenes
+from nuscenes.utils.data_classes import RadarPointCloud
+
+# 3rd party libraries
+import cv2
 
 data_dir = "D:/MULTIMEDIA/NuScenes"
 
-nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
 
-all_samples = []
+def get_list_of_samples(nusc):
+    all_samples = []
 
-for scene in nusc.scene:
-    first_sample_token = scene['first_sample_token']
-    curr_sample = nusc.get('sample', first_sample_token)
+    for scene in nusc.scene:
+        first_sample_token = scene['first_sample_token']
+        curr_sample = nusc.get('sample', first_sample_token)
 
-    for _ in range(scene['nbr_samples']-1):
-        all_samples.append(curr_sample)
-        next_token = curr_sample['next']
-        curr_sample = nusc.get('sample', next_token)
-    all_samples.append(curr_sample)  # this appends the last sample of the scene
+        for _ in range(scene['nbr_samples'] - 1):
+            all_samples.append(curr_sample)
+            next_token = curr_sample['next']
+            curr_sample = nusc.get('sample', next_token)
+        all_samples.append(curr_sample)  # this appends the last sample of the scene
 
+    return all_samples
+
+
+def fuse_data(nusc, sample):
+    sample_token = sample['token']
+    cam_front_token = sample['data']['CAM_FRONT']
+    cam_front_data = nusc.get('sample_data', cam_front_token)
+    cam_front_filename = cam_front_data['filename']
+    cam_front_filename = os.path.join(data_dir, cam_front_filename)
+    image = cv2.imread(cam_front_filename)
+
+    radar_front_token = sample['data']['RADAR_FRONT']
+    radar_front_data = nusc.get('sample_data', radar_front_token)
+    radar_front_filename = radar_front_data['filename']
+    radar_front_filename = os.path.join(data_dir, radar_front_filename)
+
+    # FIELDS x y z dyn_prop id rcs vx vy vx_comp vy_comp is_quality_valid ambig_state x_rms y_rms invalid_state pdh0
+    # vx_rms vy_rms
+    radar_image = RadarPointCloud.from_file(radar_front_filename)
+
+
+
+
+if __name__ == "__main__":
+    nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
+    all_samples = get_list_of_samples(nusc)
+    for sample in all_samples:
+        fuse_data(nusc, sample)
