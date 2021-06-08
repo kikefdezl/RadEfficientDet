@@ -1,14 +1,15 @@
 # default libraries
 import os
 
-# nuscenes libraries
-from nuscenes.nuscenes import NuScenes
+# local libraries
+from image_graphics import draw_circles
+from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 
 # 3rd party libraries
 import cv2
 
-data_dir = "D:/MULTIMEDIA/NuScenes"
+data_dir = os.environ.get('NUSCENES_DIR')
 
 
 def get_list_of_samples(nusc):
@@ -28,6 +29,8 @@ def get_list_of_samples(nusc):
 
 
 def fuse_data(nusc, sample):
+
+    nusc_explorer = NuScenesExplorer(nusc)
     sample_token = sample['token']
     cam_front_token = sample['data']['CAM_FRONT']
     cam_front_data = nusc.get('sample_data', cam_front_token)
@@ -42,8 +45,12 @@ def fuse_data(nusc, sample):
 
     # FIELDS x y z dyn_prop id rcs vx vy vx_comp vy_comp is_quality_valid ambig_state x_rms y_rms invalid_state pdh0
     # vx_rms vy_rms
-    radar_image = RadarPointCloud.from_file(radar_front_filename)
+    radar_point_cloud = RadarPointCloud.from_file(radar_front_filename)
+    radar_image = radar_point_cloud.points
+    points, coloring, im = nusc_explorer.map_pointcloud_to_image(radar_front_token, cam_front_token)
 
+    draw_circles(image, points)
+    pass
 
 
 
