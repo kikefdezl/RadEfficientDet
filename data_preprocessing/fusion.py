@@ -13,6 +13,14 @@ data_dir = os.environ.get('NUSCENES_DIR')
 
 
 def get_list_of_samples(nusc):
+    """
+    Args:
+        nusc: NuScenes object of the database
+
+    Returns:
+        all_samples: a list containing all of the samples in the database (full samples, not just the token)
+    """
+
     all_samples = []
 
     for scene in nusc.scene:
@@ -29,6 +37,14 @@ def get_list_of_samples(nusc):
 
 
 def fuse_data(nusc, sample):
+    """
+    Args:
+        nusc: NuScenes object of the database
+        sample: single Sample object of the database
+
+    Returns:
+        fused_image: image containing the radar data fused into the camera image.
+    """
 
     nusc_explorer = NuScenesExplorer(nusc)
     sample_token = sample['token']
@@ -49,8 +65,9 @@ def fuse_data(nusc, sample):
     radar_image = radar_point_cloud.points
     points, coloring, im = nusc_explorer.map_pointcloud_to_image(radar_front_token, cam_front_token)
 
-    draw_circles(image, points)
-    pass
+    image = draw_circles(image, points)
+    # cv2.imshow('windowname', image)
+    # cv2.waitKey(50)
 
 
 

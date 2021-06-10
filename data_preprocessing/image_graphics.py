@@ -11,5 +11,5 @@ def draw_circles(image, points):
         point_x = int(point_x)
         point_y = int(point_y)
         new_img = cv2.circle(new_img, (point_x, point_y), 5, (52,112,255), 4)
-    cv2.imshow('windowname', new_img)
-    cv2.waitKey(50)
+
+    return new_img
