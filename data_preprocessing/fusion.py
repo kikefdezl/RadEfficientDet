@@ -61,6 +61,15 @@ class Fuser:
         elif side == 'FRONT_LEFT':
             cam_token = sample['data']['CAM_FRONT_LEFT']
             radar_token = sample['data']['RADAR_FRONT_LEFT']
+        elif side == 'BACK_RIGHT':
+            cam_token = sample['data']['CAM_BACK_RIGHT']
+            radar_token = sample['data']['RADAR_BACK_RIGHT']
+        elif side == 'BACK_LEFT':
+            cam_token = sample['data']['CAM_BACK_LEFT']
+            radar_token = sample['data']['RADAR_BACK_LEFT']
+        else:
+            print("Error, Fuser side < %s > doesn't exist" %side)
+            print("Choose one of the following: FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT, BACK_LEFT")
 
         # camera
         cam_front_data = self.nusc.get('sample_data', cam_token)
