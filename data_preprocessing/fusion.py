@@ -1,3 +1,11 @@
+"""
+
+Written by Enrique Fernández-Laguilhoat Sánchez-Biezma
+
+Some parts of code have been taken from the NuScenes SDK and modified for this use case.
+
+"""
+
 # default libraries
 import os
 
@@ -5,19 +13,24 @@ import os
 from image_graphics import draw_overlay
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
+from nuscenes.utils.geometry_utils import view_points
 
 # 3rd party libraries
 import cv2
 import numpy as np
+from pyquaternion import Quaternion
 
+"""
+You must set up an environment variable 'NUSCENES_DIR' in your OS with the directory of your NuScenes database
+e.g. NUSCENES_DIR = C:/Data/NuScenes
+"""
 data_dir = os.environ.get('NUSCENES_DIR')
 
 
 class Fuser:
-
     def __init__(self, nusc):
         """
-        initializes a data fuser with the NuScenes database
+        Initializes a data fuser with the NuScenes database
         """
         self.nusc = nusc
         self.nusc_explorer = NuScenesExplorer(self.nusc)
@@ -53,60 +66,82 @@ class Fuser:
         sample = self.nusc.get('sample', sample_token)
 
         if side == 'FRONT':
-            cam_token = sample['data']['CAM_FRONT']
-            radar_token = sample['data']['RADAR_FRONT']
+            cam_data_token = sample['data']['CAM_FRONT']
+            radar_data_token = sample['data']['RADAR_FRONT']
         elif side == 'FRONT_RIGHT':
-            cam_token = sample['data']['CAM_FRONT_RIGHT']
-            radar_token = sample['data']['RADAR_FRONT_RIGHT']
+            cam_data_token = sample['data']['CAM_FRONT_RIGHT']
+            radar_data_token = sample['data']['RADAR_FRONT_RIGHT']
         elif side == 'FRONT_LEFT':
-            cam_token = sample['data']['CAM_FRONT_LEFT']
-            radar_token = sample['data']['RADAR_FRONT_LEFT']
+            cam_data_token = sample['data']['CAM_FRONT_LEFT']
+            radar_data_token = sample['data']['RADAR_FRONT_LEFT']
         elif side == 'BACK_RIGHT':
-            cam_token = sample['data']['CAM_BACK_RIGHT']
-            radar_token = sample['data']['RADAR_BACK_RIGHT']
+            cam_data_token = sample['data']['CAM_BACK_RIGHT']
+            radar_data_token = sample['data']['RADAR_BACK_RIGHT']
         elif side == 'BACK_LEFT':
-            cam_token = sample['data']['CAM_BACK_LEFT']
-            radar_token = sample['data']['RADAR_BACK_LEFT']
+            cam_data_token = sample['data']['CAM_BACK_LEFT']
+            radar_data_token = sample['data']['RADAR_BACK_LEFT']
         else:
             print("Error, Fuser side < %s > doesn't exist" %side)
             print("Choose one of the following: FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT, BACK_LEFT")
 
         # camera
-        cam_front_data = self.nusc.get('sample_data', cam_token)
-        cam_front_filename = cam_front_data['filename']
-        cam_front_filename = os.path.join(data_dir, cam_front_filename)
-        image = cv2.imread(cam_front_filename)
+        cam_data = self.nusc.get('sample_data', cam_data_token)
+        cam_filename = cam_data['filename']
+        cam_filename = os.path.join(data_dir, cam_filename)
+        image = cv2.imread(cam_filename)
 
         # radar
-        radar_front_data = self.nusc.get('sample_data', radar_token)
-        radar_front_filename = radar_front_data['filename']
-        radar_front_filename = os.path.join(data_dir, radar_front_filename)
+        radar_data = self.nusc.get('sample_data', radar_data_token)
+        radar_filename = radar_data['filename']
+        radar_filename = os.path.join(data_dir, radar_filename)
 
         # extracting the radar information from the file. The RadarPointCloud.from_file function returns the following:
         # FIELDS x y z dyn_prop id rcs vx vy vx_comp vy_comp is_quality_valid ambig_state x_rms y_rms invalid_state pdh0
         # vx_rms vy_rms
-        radar_point_cloud = RadarPointCloud.from_file(radar_front_filename)
-        points = radar_point_cloud.points
+        radar_point_cloud = RadarPointCloud.from_file(radar_filename)
+
+        # most of the following code has been taken from nuscenes.py > NuScenesExplorer.map_pointcloud_to_img. It has
+        # been modified to also provide velocity vector information
+
+        # Points live in the point sensor frame. So they need to be transformed via global to the image plane.
+        # First step: transform the pointcloud to the ego vehicle frame for the timestamp of the sweep.
+        cs_record = self.nusc.get('calibrated_sensor', radar_data['calibrated_sensor_token'])
+        radar_point_cloud.rotate(Quaternion(cs_record['rotation']).rotation_matrix)
+        radar_point_cloud.translate(np.array(cs_record['translation']))
+
+        # Second step: transform from ego to the global frame.
+        pose_record = self.nusc.get('ego_pose', radar_data['ego_pose_token'])
+        radar_point_cloud.rotate(Quaternion(pose_record['rotation']).rotation_matrix)
+        radar_point_cloud.translate(np.array(pose_record['translation']))
+
+        # Third step: transform from global into the ego vehicle frame for the timestamp of the image.
+        pose_record = self.nusc.get('ego_pose', cam_data['ego_pose_token'])
+        radar_point_cloud.translate(-np.array(pose_record['translation']))
+        radar_point_cloud.rotate(Quaternion(pose_record['rotation']).rotation_matrix.T)
+
+        # Fourth step: transform from ego into the camera.
+        cs_record = self.nusc.get('calibrated_sensor', cam_data['calibrated_sensor_token'])
+        radar_point_cloud.translate(-np.array(cs_record['translation']))
+        radar_point_cloud.rotate(Quaternion(cs_record['rotation']).rotation_matrix.T)
+
+        # Fifth step: actually take a "picture" of the point cloud.
+        # Grab the depths (camera frame z axis points away from the camera).
         depths = radar_point_cloud.points[2, :]
 
-        """
+        points = view_points(radar_point_cloud.points[:3, :], np.array(cs_record['camera_intrinsic']), normalize=True)
+
         mask = np.ones(depths.shape[0], dtype=bool)
         mask = np.logical_and(mask, depths > min_dist)
         mask = np.logical_and(mask, points[0, :] > 1)
-        mask = np.logical_and(mask, points[0, :] < image.shape[0] - 1)
+        mask = np.logical_and(mask, points[0, :] < image.shape[1] - 1)
         mask = np.logical_and(mask, points[1, :] > 1)
-        mask = np.logical_and(mask, points[1, :] < image.shape[1] - 1)
+        mask = np.logical_and(mask, points[1, :] < image.shape[0] - 1)
+
         points = points[:, mask]
-        """
+        depths = depths[mask]
+        velocities = radar_point_cloud.points[8:10, mask]
 
-        # the map_pointcloud_to_image function does the necessary transformations to overlay the radar points on top
-        # of the corresponding image. It also exports the different coloring depending on point depth.
-        mapped_points, coloring, im = self.nusc_explorer.map_pointcloud_to_image(radar_token, cam_token)
-
-        fused_img = draw_overlay(image, mapped_points, coloring, points)
-
-        cv2.imshow('window_name', image)
-        cv2.waitKey()
+        fused_img = draw_overlay(image, points, depths, velocities)
 
         return fused_img
 
@@ -117,3 +152,7 @@ if __name__ == "__main__":
     list_of_samples = fuser.get_list_of_samples()
     for sample_token in list_of_samples:
         fused_image = fuser.fuse_data(sample_token)
+        cv2.imshow('window_name', fused_image)
+        key = cv2.waitKey()
+        if key == 27:
+            break
