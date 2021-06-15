@@ -2,7 +2,7 @@
 import os
 
 # local libraries
-from image_graphics import draw_circles
+from image_graphics import draw_overlay
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 
@@ -65,9 +65,9 @@ def fuse_data(nusc, sample):
     radar_image = radar_point_cloud.points
     points, coloring, im = nusc_explorer.map_pointcloud_to_image(radar_front_token, cam_front_token)
 
-    image = draw_circles(image, points)
+    image = draw_overlay(image, points, coloring, radar_image)
     cv2.imshow('windowname', image)
-    cv2.waitKey(50)
+    cv2.waitKey()
 
 
 
