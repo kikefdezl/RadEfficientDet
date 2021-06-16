@@ -12,3 +12,10 @@ A Deep Learning platform for obstacle detection fusing Camera and Radar data.
 - TQDM `pip install tqdm`
 - Cache Tools `pip install cachetools`
 
+# Set-up environment variables
+
+For the scripts to find the NuScenes database on your computer, it is necessary to set up an environment variable in
+your OS called 'NUSCENES_DIR' pointing to the NuScenes folder location.
+
+`eg: NUSCENES_DIR = C:/Data/NuScenes`
+
