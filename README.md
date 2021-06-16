@@ -3,7 +3,7 @@ A Deep Learning platform for obstacle detection fusing Camera and Radar data.
 
 # Requirements:
 - Python 3.7
-- Nuscenes database
+- [Nuscenes dataset](https://www.nuscenes.org/)
 - Tensorflow (+ Keras) `pip install tensorflow` `pip install tensorflow_datasets`
 - Matplotlib `pip install matplotlib`
 - OpenCV `pip install opencv_python`
