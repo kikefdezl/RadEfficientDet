@@ -7,6 +7,7 @@ Written by Enrique Fernández-Laguilhoat Sánchez-Biezma
 # 3rd party libraries
 import cv2
 import numpy as np
+from math import atan, cos, sin, pi
 
 
 def draw_overlay(image, points, depths, velocities):
@@ -23,7 +24,6 @@ def draw_overlay(image, points, depths, velocities):
 
 
 def draw_circle(image, point_x, point_y, depth, radius: int = 4):
-
     bgr_color = get_depth_color(depth)
 
     new_img = cv2.circle(image, (point_x, point_y), radius, bgr_color, -1)
@@ -31,8 +31,7 @@ def draw_circle(image, point_x, point_y, depth, radius: int = 4):
     return new_img
 
 
-def draw_vector(image, point_x, point_y, depth, vel_x, vel_y, thickness: int=2):
-
+def draw_vector(image, point_x, point_y, depth, vel_x, vel_y, thickness: int = 2):
     """
     Draws a vector showing the velocity of the point on the image
     Args:
@@ -50,14 +49,29 @@ def draw_vector(image, point_x, point_y, depth, vel_x, vel_y, thickness: int=2):
 
     bgr_color = get_depth_color(depth)
 
-    vec_x_size = int(vel_y * 10)
-    vec_y_size = int(vel_x * 10)
+    vec_x_size = -int(vel_y * 10)
+    vec_y_size = -int(vel_x * 10)
 
     pt1 = (point_x, point_y)
     pt2 = (point_x + vec_x_size, point_y + vec_y_size)
     new_img = cv2.line(image, pt1, pt2, bgr_color, thickness)
 
+    vec_size = np.sqrt(vec_x_size ** 2 + vec_y_size ** 2)
+    vector_angle = atan(vel_x / vel_y)
+    if vec_x_size < 0:
+        arrow_end_1 = (pt2[0] - (cos(vector_angle + 0.35 + pi) * 10), pt2[1] - (sin(vector_angle + 0.35 + pi) * 10))
+        arrow_end_2 = (pt2[0] - (cos(vector_angle - 0.35 + pi) * 10), pt2[1] - (sin(vector_angle - 0.35 + pi) * 10))
+    else:
+        arrow_end_1 = (pt2[0] - (cos(vector_angle + 0.35) * 10), pt2[1] - (sin(vector_angle + 0.35) * 10))
+        arrow_end_2 = (pt2[0] - (cos(vector_angle - 0.35) * 10), pt2[1] - (sin(vector_angle - 0.35) * 10))
+    arrow_end_1 = (int(arrow_end_1[0]), int(arrow_end_1[1]))
+    arrow_end_2 = (int(arrow_end_2[0]), int(arrow_end_2[1]))
+    if vec_size > 5:
+        new_img = cv2.line(new_img, pt2, arrow_end_1, bgr_color, thickness)
+        new_img = cv2.line(new_img, pt2, arrow_end_2, bgr_color, thickness)
+
     return new_img
+
 
 def get_depth_color(depth=0.0):
     """
