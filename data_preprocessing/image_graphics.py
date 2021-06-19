@@ -44,7 +44,7 @@ def draw_vector(image, point_x, point_y, depth, vel_x, vel_y, thickness: int = 2
         thickness: thickness of the vector
 
     Returns:
-        new_img: modified image
+        new_img: modified image with superposed vector
     """
 
     bgr_color = get_depth_color(depth)
@@ -57,13 +57,14 @@ def draw_vector(image, point_x, point_y, depth, vel_x, vel_y, thickness: int = 2
     new_img = cv2.line(image, pt1, pt2, bgr_color, thickness)
 
     vec_size = np.sqrt(vec_x_size ** 2 + vec_y_size ** 2)
+
     vector_angle = atan(vel_x / vel_y)
-    if vec_x_size < 0:
-        arrow_end_1 = (pt2[0] - (cos(vector_angle + 0.35 + pi) * 10), pt2[1] - (sin(vector_angle + 0.35 + pi) * 10))
-        arrow_end_2 = (pt2[0] - (cos(vector_angle - 0.35 + pi) * 10), pt2[1] - (sin(vector_angle - 0.35 + pi) * 10))
-    else:
-        arrow_end_1 = (pt2[0] - (cos(vector_angle + 0.35) * 10), pt2[1] - (sin(vector_angle + 0.35) * 10))
-        arrow_end_2 = (pt2[0] - (cos(vector_angle - 0.35) * 10), pt2[1] - (sin(vector_angle - 0.35) * 10))
+    if vel_y >= 0:
+        vector_angle += pi
+
+    arrow_end_1 = (pt2[0] - (cos(vector_angle + 0.35) * 10), pt2[1] - (sin(vector_angle + 0.35) * 10))
+    arrow_end_2 = (pt2[0] - (cos(vector_angle - 0.35) * 10), pt2[1] - (sin(vector_angle - 0.35) * 10))
+
     arrow_end_1 = (int(arrow_end_1[0]), int(arrow_end_1[1]))
     arrow_end_2 = (int(arrow_end_2[0]), int(arrow_end_2[1]))
     if vec_size > 5:

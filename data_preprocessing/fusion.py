@@ -19,6 +19,7 @@ from nuscenes.utils.geometry_utils import view_points
 import cv2
 import numpy as np
 from pyquaternion import Quaternion
+from tqdm import tqdm
 
 """
 You must set up an environment variable 'NUSCENES_DIR' in your OS with the directory of your NuScenes database
@@ -147,12 +148,25 @@ class Fuser:
 
 
 if __name__ == "__main__":
-    nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
+    nusc = NuScenes(version='v1.0-trainval', dataroot=data_dir, verbose=True)
     fuser = Fuser(nusc)
     list_of_samples = fuser.get_list_of_samples()
-    for sample_token in list_of_samples:
-        fused_image = fuser.fuse_data(sample_token)
-        cv2.imshow('window_name', fused_image)
-        key = cv2.waitKey()
-        if key == 27:
-            break
+    save_location = os.path.join(data_dir, "fused_imgs")  # creating a new folder for the fused images
+
+    # to view the images only, set as True. To save the images into files, set as False
+    show_images = True
+
+    # loop through all the samples to fuse their data
+    for sample_token in tqdm(list_of_samples):
+        fused_image = fuser.fuse_data(sample_token, side='FRONT')
+
+        if show_images:
+            cv2.imshow('window_name', fused_image)
+            key = cv2.waitKey(200)
+            if key == 27:
+                break
+        else:
+            # saving the image
+            img_filename = str(sample_token) + '.png'
+            img_filename = os.path.join(save_location, img_filename)
+            cv2.imwrite(img_filename, fused_image)
