@@ -1,3 +1,6 @@
+#local
+from retinanet import get_backbone, RetinaNetLoss, RetinaNet, LabelEncoder, preprocess_data, DecodePredictions
+
 #libraries
 import os
 import re
@@ -10,122 +13,90 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 import tensorflow_datasets as tfds
 
-def get_backbone():
-    """Builds ResNet50 with pre-trained imagenet weights"""
-    backbone = keras.applications.ResNet50(
-        include_top=False, input_shape=[None, None, 3]
+model_dir = "retinanet/"
+label_encoder = LabelEncoder()
+
+num_classes = 80
+batch_size = 2
+
+learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
+learning_rate_boundaries = [125, 250, 500, 240000, 360000]
+learning_rate_fn = tf.optimizers.schedules.PiecewiseConstantDecay(
+    boundaries=learning_rate_boundaries, values=learning_rates
+)
+
+resnet50_backbone = get_backbone()
+loss_fn = RetinaNetLoss(num_classes)
+model = RetinaNet(num_classes, resnet50_backbone)
+
+optimizer = tf.optimizers.SGD(learning_rate=learning_rate_fn, momentum=0.9)
+model.compile(loss=loss_fn, optimizer=optimizer)
+
+# model.summary()
+
+callbacks_list = [
+    tf.keras.callbacks.ModelCheckpoint(
+        filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
+        monitor="loss",
+        save_best_only=False,
+        save_weights_only=True,
+        verbose=1,
     )
-    c3_output, c4_output, c5_output = [
-        backbone.get_layer(layer_name).output
-        for layer_name in ["conv3_block4_out", "conv4_block6_out", "conv5_block3_out"]
-    ]
-    return keras.Model(
-        inputs=[backbone.inputs], outputs=[c3_output, c4_output, c5_output]
-    )
+]
 
-class FeaturePyramid(keras.layers.Layer):
-    """Builds the Feature Pyramid with the feature maps from the backbone.
+#  set `data_dir=None` to load the complete dataset
+(train_dataset, val_dataset), dataset_info = tfds.load(
+    "coco/2017", split=["train", "validation"], with_info=True, data_dir="D:\data"
+)
 
-    Attributes:
-      num_classes: Number of classes in the dataset.
-      backbone: The backbone to build the feature pyramid from.
-        Currently supports ResNet50 only.
-    """
+autotune = tf.data.experimental.AUTOTUNE
+train_dataset = train_dataset.map(preprocess_data, num_parallel_calls=autotune)
+train_dataset = train_dataset.shuffle(8 * batch_size)
+train_dataset = train_dataset.padded_batch(
+    batch_size=batch_size, padding_values=(0.0, 1e-8, -1), drop_remainder=True
+)
+train_dataset = train_dataset.map(
+    label_encoder.encode_batch, num_parallel_calls=autotune
+)
+train_dataset = train_dataset.apply(tf.data.experimental.ignore_errors())
+train_dataset = train_dataset.prefetch(autotune)
 
-    def __init__(self, backbone=None, **kwargs):
-        super(FeaturePyramid, self).__init__(name="FeaturePyramid", **kwargs)
-        self.backbone = backbone if backbone else get_backbone()
-        self.conv_c3_1x1 = keras.layers.Conv2D(256, 1, 1, "same")
-        self.conv_c4_1x1 = keras.layers.Conv2D(256, 1, 1, "same")
-        self.conv_c5_1x1 = keras.layers.Conv2D(256, 1, 1, "same")
-        self.conv_c3_3x3 = keras.layers.Conv2D(256, 3, 1, "same")
-        self.conv_c4_3x3 = keras.layers.Conv2D(256, 3, 1, "same")
-        self.conv_c5_3x3 = keras.layers.Conv2D(256, 3, 1, "same")
-        self.conv_c6_3x3 = keras.layers.Conv2D(256, 3, 2, "same")
-        self.conv_c7_3x3 = keras.layers.Conv2D(256, 3, 2, "same")
-        self.upsample_2x = keras.layers.UpSampling2D(2)
+val_dataset = val_dataset.map(preprocess_data, num_parallel_calls=autotune)
+val_dataset = val_dataset.padded_batch(
+    batch_size=1, padding_values=(0.0, 1e-8, -1), drop_remainder=True
+)
+val_dataset = val_dataset.map(label_encoder.encode_batch, num_parallel_calls=autotune)
+val_dataset = val_dataset.apply(tf.data.experimental.ignore_errors())
+val_dataset = val_dataset.prefetch(autotune)
 
-    def call(self, images, training=False):
-        c3_output, c4_output, c5_output = self.backbone(images, training=training)
-        p3_output = self.conv_c3_1x1(c3_output)
-        p4_output = self.conv_c4_1x1(c4_output)
-        p5_output = self.conv_c5_1x1(c5_output)
-        p4_output = p4_output + self.upsample_2x(p5_output)
-        p3_output = p3_output + self.upsample_2x(p4_output)
-        p3_output = self.conv_c3_3x3(p3_output)
-        p4_output = self.conv_c4_3x3(p4_output)
-        p5_output = self.conv_c5_3x3(p5_output)
-        p6_output = self.conv_c6_3x3(c5_output)
-        p7_output = self.conv_c7_3x3(tf.nn.relu(p6_output))
-        return p3_output, p4_output, p5_output, p6_output, p7_output
+# Uncomment the following lines, when training on full dataset
+# train_steps_per_epoch = dataset_info.splits["train"].num_examples // batch_size
+# val_steps_per_epoch = \
+#     dataset_info.splits["validation"].num_examples // batch_size
 
-def build_head(output_filters, bias_init):
-    """Builds the class/box predictions head.
+# train_steps = 4 * 100000
+# epochs = train_steps // train_steps_per_epoch
 
-    Arguments:
-      output_filters: Number of convolution filters in the final layer.
-      bias_init: Bias Initializer for the final convolution layer.
+epochs = 1
 
-    Returns:
-      A keras sequential model representing either the classification
-        or the box regression head depending on `output_filters`.
-    """
-    head = keras.Sequential([keras.Input(shape=[None, None, 256])])
-    kernel_init = tf.initializers.RandomNormal(0.0, 0.01)
-    for _ in range(4):
-        head.add(
-            keras.layers.Conv2D(256, 3, padding="same", kernel_initializer=kernel_init)
-        )
-        head.add(keras.layers.ReLU())
-    head.add(
-        keras.layers.Conv2D(
-            output_filters,
-            3,
-            1,
-            padding="same",
-            kernel_initializer=kernel_init,
-            bias_initializer=bias_init,
-        )
-    )
-    return head
+# Running 100 training and 50 validation steps,
+# remove `.take` when training on the full dataset
 
-class RetinaNet(keras.Model):
-    """A subclassed Keras model implementing the RetinaNet architecture.
+model.fit(
+    train_dataset.take(100),
+    validation_data=val_dataset.take(50),
+    epochs=epochs,
+    callbacks=callbacks_list,
+    verbose=1,
+)
 
-    Attributes:
-      num_classes: Number of classes in the dataset.
-      backbone: The backbone to build the feature pyramid from.
-        Currently supports ResNet50 only.
-    """
+# Change this to `model_dir` when not using the downloaded weights
+weights_dir = "D:\data"
 
-    def __init__(self, num_classes, backbone=None, **kwargs):
-        super(RetinaNet, self).__init__(name="RetinaNet", **kwargs)
-        self.fpn = FeaturePyramid(backbone)
-        self.num_classes = num_classes
+latest_checkpoint = tf.train.latest_checkpoint(weights_dir)
+model.load_weights(latest_checkpoint)
 
-        prior_probability = tf.constant_initializer(-np.log((1 - 0.01) / 0.01))
-        self.cls_head = build_head(9 * num_classes, prior_probability)
-        self.box_head = build_head(9 * 4, "zeros")
-
-    def call(self, image, training=False):
-        features = self.fpn(image, training=training)
-        N = tf.shape(image)[0]
-        cls_outputs = []
-        box_outputs = []
-        for feature in features:
-            box_outputs.append(tf.reshape(self.box_head(feature), [N, -1, 4]))
-            cls_outputs.append(
-                tf.reshape(self.cls_head(feature), [N, -1, self.num_classes])
-            )
-        cls_outputs = tf.concat(cls_outputs, axis=1)
-        box_outputs = tf.concat(box_outputs, axis=1)
-        return tf.concat([box_outputs, cls_outputs], axis=-1)
-
-backbone = get_backbone()
-# keras.utils.plot_model(backbone, "backbonemodel.png", show_shapes=True)
-
-backbone.summary()
-
-# my_net = RetinaNet(10, backbone)
-#
-# my_net.summary()
+image = tf.keras.Input(shape=[None, None, 3], name="image")
+predictions = model(image, training=False)
+detections = DecodePredictions(confidence_threshold=0.5)(image, predictions)
+inference_model = tf.keras.Model(inputs=image, outputs=detections)

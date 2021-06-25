@@ -1,14 +1,15 @@
-#libraries
+# libraries
 import os
 import re
 import zipfile
 
-#3rd pary libraries
+# 3rd pary libraries
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 import matplotlib.pyplot as plt
 import tensorflow_datasets as tfds
+
 
 class AnchorBox:
     """Generates anchor boxes.
@@ -103,6 +104,7 @@ class AnchorBox:
         ]
         return tf.concat(anchors, axis=0)
 
+
 def get_dataset():
     url = "https://github.com/srihari-humbarwadi/datasets/releases/download/v0.1.0/data.zip"
     filename = os.path.join(os.getcwd(), "data.zip")
@@ -110,6 +112,7 @@ def get_dataset():
 
     with zipfile.ZipFile("data.zip", "r") as z_fp:
         z_fp.extractall("./")
+
 
 def swap_xy(boxes):
     """Swaps order the of x and y coordinates of the boxes.
@@ -121,6 +124,7 @@ def swap_xy(boxes):
       swapped boxes with shape same as that of boxes.
     """
     return tf.stack([boxes[:, 1], boxes[:, 0], boxes[:, 3], boxes[:, 2]], axis=-1)
+
 
 def convert_to_xywh(boxes):
     """
@@ -139,6 +143,7 @@ def convert_to_xywh(boxes):
         axis=-1,
     )
 
+
 def convert_to_corners(boxes):
     """
     Changes the box format to corner coordinates
@@ -155,6 +160,7 @@ def convert_to_corners(boxes):
         [boxes[..., :2] - boxes[..., 2:] / 2.0, boxes[..., :2] + boxes[..., 2:] / 2.0],
         axis=-1,
     )
+
 
 def compute_iou(boxes1, boxes2):
     """Computes pairwise IOU matrix for given two sets of boxes
@@ -184,9 +190,7 @@ def compute_iou(boxes1, boxes2):
     return tf.clip_by_value(intersection_area / union_area, 0.0, 1.0)
 
 
-def visualize_detections(
-    image, boxes, classes, scores, figsize=(7, 7), linewidth=1, color=[0, 0, 1]
-):
+def visualize_detections(image, boxes, classes, scores, figsize=(7, 7), linewidth=1, color=[0, 0, 1]):
     """Visualize Detections"""
     image = np.array(image, dtype=np.uint8)
     plt.figure(figsize=figsize)
@@ -212,6 +216,7 @@ def visualize_detections(
     plt.show()
     return ax
 
+
 def random_flip_horizontal(image, boxes):
     """Flips image and boxes horizontally with 50% chance
 
@@ -232,9 +237,7 @@ def random_flip_horizontal(image, boxes):
     return image, boxes
 
 
-def resize_and_pad_image(
-    image, min_side=800.0, max_side=1333.0, jitter=[640, 1024], stride=128.0
-):
+def resize_and_pad_image(image, min_side=800.0, max_side=1333.0, jitter=[640, 1024], stride=128.):
     """Resizes and pads image while preserving aspect ratio.
 
     1. Resizes images so that the shorter side is equal to `min_side`
@@ -311,6 +314,7 @@ def preprocess_data(sample):
     bbox = convert_to_xywh(bbox)
     return image, bbox, class_id
 
+
 class LabelEncoder:
     """Transforms the raw labels into targets for training.
 
@@ -330,7 +334,7 @@ class LabelEncoder:
         )
 
     def _match_anchor_boxes(
-        self, anchor_boxes, gt_boxes, match_iou=0.5, ignore_iou=0.4
+            self, anchor_boxes, gt_boxes, match_iou=0.5, ignore_iou=0.4
     ):
         """Matches ground truth boxes to anchor boxes based on IOU.
 
@@ -416,6 +420,7 @@ class LabelEncoder:
         batch_images = tf.keras.applications.resnet.preprocess_input(batch_images)
         return batch_images, labels.stack()
 
+
 def get_backbone():
     """Builds ResNet50 with pre-trained imagenet weights"""
     backbone = keras.applications.ResNet50(
@@ -428,6 +433,7 @@ def get_backbone():
     return keras.Model(
         inputs=[backbone.inputs], outputs=[c3_output, c4_output, c5_output]
     )
+
 
 class FeaturePyramid(keras.layers.Layer):
     """Builds the Feature Pyramid with the feature maps from the backbone.
@@ -465,6 +471,7 @@ class FeaturePyramid(keras.layers.Layer):
         p7_output = self.conv_c7_3x3(tf.nn.relu(p6_output))
         return p3_output, p4_output, p5_output, p6_output, p7_output
 
+
 def build_head(output_filters, bias_init):
     """Builds the class/box predictions head.
 
@@ -494,6 +501,7 @@ def build_head(output_filters, bias_init):
         )
     )
     return head
+
 
 class RetinaNet(keras.Model):
     """A subclassed Keras model implementing the RetinaNet architecture.
@@ -527,6 +535,7 @@ class RetinaNet(keras.Model):
         box_outputs = tf.concat(box_outputs, axis=1)
         return tf.concat([box_outputs, cls_outputs], axis=-1)
 
+
 class DecodePredictions(tf.keras.layers.Layer):
     """A Keras layer that decodes predictions of the RetinaNet model.
 
@@ -544,14 +553,14 @@ class DecodePredictions(tf.keras.layers.Layer):
     """
 
     def __init__(
-        self,
-        num_classes=80,
-        confidence_threshold=0.05,
-        nms_iou_threshold=0.5,
-        max_detections_per_class=100,
-        max_detections=100,
-        box_variance=[0.1, 0.1, 0.2, 0.2],
-        **kwargs
+            self,
+            num_classes=80,
+            confidence_threshold=0.05,
+            nms_iou_threshold=0.5,
+            max_detections_per_class=100,
+            max_detections=100,
+            box_variance=[0.1, 0.1, 0.2, 0.2],
+            **kwargs
     ):
         super(DecodePredictions, self).__init__(**kwargs)
         self.num_classes = num_classes
@@ -593,6 +602,7 @@ class DecodePredictions(tf.keras.layers.Layer):
             self.confidence_threshold,
             clip_boxes=False,
         )
+
 
 class RetinaNetBoxLoss(tf.losses.Loss):
     """Implements Smooth L1 loss"""
@@ -667,112 +677,115 @@ class RetinaNetLoss(tf.losses.Loss):
         loss = clf_loss + box_loss
         return loss
 
-model_dir = "retinanet/"
-label_encoder = LabelEncoder()
 
-num_classes = 80
-batch_size = 2
+if __name__ == "main":
+    model_dir = "retinanet/"
+    label_encoder = LabelEncoder()
 
-learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
-learning_rate_boundaries = [125, 250, 500, 240000, 360000]
-learning_rate_fn = tf.optimizers.schedules.PiecewiseConstantDecay(
-    boundaries=learning_rate_boundaries, values=learning_rates
-)
+    num_classes = 80
+    batch_size = 2
 
-resnet50_backbone = get_backbone()
-loss_fn = RetinaNetLoss(num_classes)
-model = RetinaNet(num_classes, resnet50_backbone)
+    learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
+    learning_rate_boundaries = [125, 250, 500, 240000, 360000]
+    learning_rate_fn = tf.optimizers.schedules.PiecewiseConstantDecay(
+        boundaries=learning_rate_boundaries, values=learning_rates
+    )
 
-optimizer = tf.optimizers.SGD(learning_rate=learning_rate_fn, momentum=0.9)
-model.compile(loss=loss_fn, optimizer=optimizer)
+    resnet50_backbone = get_backbone()
+    loss_fn = RetinaNetLoss(num_classes)
+    model = RetinaNet(num_classes, resnet50_backbone)
 
-callbacks_list = [
-    tf.keras.callbacks.ModelCheckpoint(
-        filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
-        monitor="loss",
-        save_best_only=False,
-        save_weights_only=True,
+    optimizer = tf.optimizers.SGD(learning_rate=learning_rate_fn, momentum=0.9)
+    model.compile(loss=loss_fn, optimizer=optimizer)
+
+    callbacks_list = [
+        tf.keras.callbacks.ModelCheckpoint(
+            filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
+            monitor="loss",
+            save_best_only=False,
+            save_weights_only=True,
+            verbose=1,
+        )
+    ]
+
+    #  set `data_dir=None` to load the complete dataset
+    (train_dataset, val_dataset), dataset_info = tfds.load(
+        "coco/2017", split=["train", "validation"], with_info=True, data_dir="data"
+    )
+
+    autotune = tf.data.experimental.AUTOTUNE
+    train_dataset = train_dataset.map(preprocess_data, num_parallel_calls=autotune)
+    train_dataset = train_dataset.shuffle(8 * batch_size)
+    train_dataset = train_dataset.padded_batch(
+        batch_size=batch_size, padding_values=(0.0, 1e-8, -1), drop_remainder=True
+    )
+    train_dataset = train_dataset.map(
+        label_encoder.encode_batch, num_parallel_calls=autotune
+    )
+    train_dataset = train_dataset.apply(tf.data.experimental.ignore_errors())
+    train_dataset = train_dataset.prefetch(autotune)
+
+    val_dataset = val_dataset.map(preprocess_data, num_parallel_calls=autotune)
+    val_dataset = val_dataset.padded_batch(
+        batch_size=1, padding_values=(0.0, 1e-8, -1), drop_remainder=True
+    )
+    val_dataset = val_dataset.map(label_encoder.encode_batch, num_parallel_calls=autotune)
+    val_dataset = val_dataset.apply(tf.data.experimental.ignore_errors())
+    val_dataset = val_dataset.prefetch(autotune)
+
+    # Uncomment the following lines, when training on full dataset
+    # train_steps_per_epoch = dataset_info.splits["train"].num_examples // batch_size
+    # val_steps_per_epoch = \
+    #     dataset_info.splits["validation"].num_examples // batch_size
+
+    # train_steps = 4 * 100000
+    # epochs = train_steps // train_steps_per_epoch
+
+    epochs = 1
+
+    # Running 100 training and 50 validation steps,
+    # remove `.take` when training on the full dataset
+
+    model.fit(
+        train_dataset.take(100),
+        validation_data=val_dataset.take(50),
+        epochs=epochs,
+        callbacks=callbacks_list,
         verbose=1,
     )
-]
 
-#  set `data_dir=None` to load the complete dataset
-(train_dataset, val_dataset), dataset_info = tfds.load(
-    "coco/2017", split=["train", "validation"], with_info=True, data_dir="data"
-)
+    # Change this to `model_dir` when not using the downloaded weights
+    weights_dir = "data"
 
-autotune = tf.data.experimental.AUTOTUNE
-train_dataset = train_dataset.map(preprocess_data, num_parallel_calls=autotune)
-train_dataset = train_dataset.shuffle(8 * batch_size)
-train_dataset = train_dataset.padded_batch(
-    batch_size=batch_size, padding_values=(0.0, 1e-8, -1), drop_remainder=True
-)
-train_dataset = train_dataset.map(
-    label_encoder.encode_batch, num_parallel_calls=autotune
-)
-train_dataset = train_dataset.apply(tf.data.experimental.ignore_errors())
-train_dataset = train_dataset.prefetch(autotune)
+    latest_checkpoint = tf.train.latest_checkpoint(weights_dir)
+    model.load_weights(latest_checkpoint)
 
-val_dataset = val_dataset.map(preprocess_data, num_parallel_calls=autotune)
-val_dataset = val_dataset.padded_batch(
-    batch_size=1, padding_values=(0.0, 1e-8, -1), drop_remainder=True
-)
-val_dataset = val_dataset.map(label_encoder.encode_batch, num_parallel_calls=autotune)
-val_dataset = val_dataset.apply(tf.data.experimental.ignore_errors())
-val_dataset = val_dataset.prefetch(autotune)
-
-# Uncomment the following lines, when training on full dataset
-# train_steps_per_epoch = dataset_info.splits["train"].num_examples // batch_size
-# val_steps_per_epoch = \
-#     dataset_info.splits["validation"].num_examples // batch_size
-
-# train_steps = 4 * 100000
-# epochs = train_steps // train_steps_per_epoch
-
-epochs = 1
-
-# Running 100 training and 50 validation steps,
-# remove `.take` when training on the full dataset
-
-model.fit(
-    train_dataset.take(100),
-    validation_data=val_dataset.take(50),
-    epochs=epochs,
-    callbacks=callbacks_list,
-    verbose=1,
-)
-
-# Change this to `model_dir` when not using the downloaded weights
-weights_dir = "data"
-
-latest_checkpoint = tf.train.latest_checkpoint(weights_dir)
-model.load_weights(latest_checkpoint)
-
-image = tf.keras.Input(shape=[None, None, 3], name="image")
-predictions = model(image, training=False)
-detections = DecodePredictions(confidence_threshold=0.5)(image, predictions)
-inference_model = tf.keras.Model(inputs=image, outputs=detections)
-
-def prepare_image(image):
-    image, _, ratio = resize_and_pad_image(image, jitter=None)
-    image = tf.keras.applications.resnet.preprocess_input(image)
-    return tf.expand_dims(image, axis=0), ratio
+    image = tf.keras.Input(shape=[None, None, 3], name="image")
+    predictions = model(image, training=False)
+    detections = DecodePredictions(confidence_threshold=0.5)(image, predictions)
+    inference_model = tf.keras.Model(inputs=image, outputs=detections)
 
 
-val_dataset = tfds.load("coco/2017", split="validation", data_dir="data")
-int2str = dataset_info.features["objects"]["label"].int2str
+    def prepare_image(image):
+        image, _, ratio = resize_and_pad_image(image, jitter=None)
+        image = tf.keras.applications.resnet.preprocess_input(image)
+        return tf.expand_dims(image, axis=0), ratio
 
-for sample in val_dataset.take(2):
-    image = tf.cast(sample["image"], dtype=tf.float32)
-    input_image, ratio = prepare_image(image)
-    detections = inference_model.predict(input_image)
-    num_detections = detections.valid_detections[0]
-    class_names = [
-        int2str(int(x)) for x in detections.nmsed_classes[0][:num_detections]
-    ]
-    visualize_detections(
-        image,
-        detections.nmsed_boxes[0][:num_detections] / ratio,
-        class_names,
-        detections.nmsed_scores[0][:num_detections],
-    )
+
+    val_dataset = tfds.load("coco/2017", split="validation", data_dir="data")
+    int2str = dataset_info.features["objects"]["label"].int2str
+
+    for sample in val_dataset.take(2):
+        image = tf.cast(sample["image"], dtype=tf.float32)
+        input_image, ratio = prepare_image(image)
+        detections = inference_model.predict(input_image)
+        num_detections = detections.valid_detections[0]
+        class_names = [
+            int2str(int(x)) for x in detections.nmsed_classes[0][:num_detections]
+        ]
+        visualize_detections(
+            image,
+            detections.nmsed_boxes[0][:num_detections] / ratio,
+            class_names,
+            detections.nmsed_scores[0][:num_detections],
+        )
