@@ -11,7 +11,6 @@ import os
 
 # local libraries
 from image_graphics import draw_overlay
-import nuscenes
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points
@@ -36,30 +35,31 @@ class Fuser:
         """
         self.nusc = nusc
         self.nusc_explorer = NuScenesExplorer(self.nusc)
+        self.list_of_sample_tokens = []
+        self.generate_sample_tokens()
 
-    def get_list_of_samples(self):
+    def generate_sample_tokens(self):
         """
-        Returns: list_of_samples: a list containing all of the samples' tokens in the database (only the token)
+        generates a list of all the sample tokens in the dataset, and saves it in the self.list_of_sample_tokens
+        variable
         """
 
-        list_of_samples = []
+        self.list_of_sample_tokens = []
 
         for scene in self.nusc.scene:
             first_sample_token = scene['first_sample_token']
             curr_sample = self.nusc.get('sample', first_sample_token)
 
             for _ in range(scene['nbr_samples'] - 1):
-                list_of_samples.append(curr_sample['token'])
+                self.list_of_sample_tokens.append(curr_sample['token'])
                 next_token = curr_sample['next']
                 curr_sample = self.nusc.get('sample', next_token)
-            list_of_samples.append(curr_sample['token'])  # this appends the last sample of the scene
-
-        return list_of_samples
+            self.list_of_sample_tokens.append(curr_sample['token'])  # this appends the last sample token of the scene
 
     def fuse_data(self, sample_token, min_dist: float = 1.0, side: str = 'FRONT'):
         """
         Args:
-            sample_token: single Sample object of the database
+            sample_token: single Sample token of the database
 
         Returns:
             fused_image: image containing the radar data fused into the camera image.
@@ -147,18 +147,20 @@ class Fuser:
 
         return fused_img
 
+    def get_sample_tokens(self):
+        return self.list_of_sample_tokens
+
 
 if __name__ == "__main__":
-    nusc = NuScenes(version='v1.0-trainval', dataroot=data_dir, verbose=True)
+    nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
     fuser = Fuser(nusc)
-    list_of_samples = fuser.get_list_of_samples()
     save_location = os.path.join(data_dir, "fused_imgs")  # creating a new folder for the fused images
 
     # to view the images only, set as True. To save the images into files, set as False
     show_images = True
 
     # loop through all the samples to fuse their data
-    for sample_token in tqdm(list_of_samples):
+    for sample_token in tqdm(fuser.get_sample_tokens()):
         fused_image = fuser.fuse_data(sample_token, side='FRONT')
 
         if show_images:
