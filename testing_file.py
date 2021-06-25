@@ -1,16 +1,11 @@
 #local
-from retinanet import get_backbone, RetinaNetLoss, RetinaNet, LabelEncoder, preprocess_data, DecodePredictions
+from models.retinanet import get_backbone, RetinaNetLoss, RetinaNet, LabelEncoder, preprocess_data, DecodePredictions
 
 #libraries
 import os
-import re
-import zipfile
 
 #3rd pary libraries
-import numpy as np
 import tensorflow as tf
-from tensorflow import keras
-import matplotlib.pyplot as plt
 import tensorflow_datasets as tfds
 
 model_dir = "retinanet/"

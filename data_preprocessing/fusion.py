@@ -22,7 +22,7 @@ from pyquaternion import Quaternion
 from tqdm import tqdm
 
 """
-You must set up an environment variable 'NUSCENES_DIR' in your OS with the directory of your NuScenes database
+Must set up an environment variable 'NUSCENES_DIR' in your OS with the directory of your NuScenes database
 e.g. NUSCENES_DIR = C:/Data/NuScenes
 """
 data_dir = os.environ.get('NUSCENES_DIR')
@@ -31,7 +31,7 @@ data_dir = os.environ.get('NUSCENES_DIR')
 class Fuser:
     def __init__(self, nusc):
         """
-        Initializes a data fuser with the NuScenes database
+        Initializes a data fuser for the NuScenes database
         """
         self.nusc = nusc
         self.nusc_explorer = NuScenesExplorer(self.nusc)
