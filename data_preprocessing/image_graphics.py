@@ -1,6 +1,6 @@
 """
 
-Written by Enrique Fernández-Laguilhoat Sánchez-Biezma
+Author: Enrique Fernández-Laguilhoat Sánchez-Biezma
 
 """
 

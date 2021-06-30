@@ -1,6 +1,6 @@
 """
 
-Written by Enrique Fernández-Laguilhoat Sánchez-Biezma
+Author: Enrique Fernández-Laguilhoat Sánchez-Biezma
 
 Some parts of code have been taken from the NuScenes SDK and modified for this use case.
 
@@ -10,7 +10,7 @@ Some parts of code have been taken from the NuScenes SDK and modified for this u
 import os
 
 # local libraries
-from image_graphics import draw_overlay
+from data_preprocessing.image_graphics import draw_overlay
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points
@@ -20,6 +20,14 @@ import cv2
 import numpy as np
 from pyquaternion import Quaternion
 from tqdm import tqdm
+
+"""
+Use the following variables to modify the use of this file
+"""
+show_images = True  # if True, the fused data is only shown through the screen. If set to false, the images are saved
+# as .png files in the fused_imgs dir
+
+dataset_version = 'mini'  # set as 'mini' for testing, and set as 'trainval' to use the whole dataset.
 
 """
 Must set up an environment variable 'NUSCENES_DIR' in your OS with the directory of your NuScenes database
@@ -36,9 +44,9 @@ class Fuser:
         self.nusc = nusc
         self.nusc_explorer = NuScenesExplorer(self.nusc)
         self.list_of_sample_tokens = []
-        self.generate_sample_tokens()
+        self._generate_sample_tokens()
 
-    def generate_sample_tokens(self):
+    def _generate_sample_tokens(self):
         """
         generates a list of all the sample tokens in the dataset, and saves it in the self.list_of_sample_tokens
         variable
@@ -152,12 +160,17 @@ class Fuser:
 
 
 if __name__ == "__main__":
-    nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
+    if dataset_version == 'mini':
+        nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
+    elif dataset_version == 'trainval':
+        nusc = NuScenes(version='v1.0-trainval', dataroot=data_dir, verbose=True)
+    else:
+        print("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
+        exit(0)
     fuser = Fuser(nusc)
     save_location = os.path.join(data_dir, "fused_imgs")  # creating a new folder for the fused images
 
     # to view the images only, set as True. To save the images into files, set as False
-    show_images = True
 
     # loop through all the samples to fuse their data
     for sample_token in tqdm(fuser.get_sample_tokens()):

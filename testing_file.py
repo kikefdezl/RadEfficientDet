@@ -1,5 +1,6 @@
 #local
 from models.retinanet import get_backbone, RetinaNetLoss, RetinaNet, LabelEncoder, preprocess_data, DecodePredictions
+from models.utils import load_fused_imgs_dataset
 
 #libraries
 import os
@@ -8,7 +9,9 @@ import os
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-model_dir = "retinanet/"
+nuscenes_dir = os.environ.get('NUSCENES_DIR')
+
+model_dir = "models/retinanet"
 label_encoder = LabelEncoder()
 
 num_classes = 80
@@ -39,22 +42,21 @@ callbacks_list = [
     )
 ]
 
-#  set `data_dir=None` to load the complete dataset
-(train_dataset, val_dataset), dataset_info = tfds.load(
-    "coco/2017", split=["train", "validation"], with_info=True, data_dir="D:\data"
-)
-
-autotune = tf.data.experimental.AUTOTUNE
-train_dataset = train_dataset.map(preprocess_data, num_parallel_calls=autotune)
-train_dataset = train_dataset.shuffle(8 * batch_size)
-train_dataset = train_dataset.padded_batch(
-    batch_size=batch_size, padding_values=(0.0, 1e-8, -1), drop_remainder=True
-)
-train_dataset = train_dataset.map(
-    label_encoder.encode_batch, num_parallel_calls=autotune
-)
-train_dataset = train_dataset.apply(tf.data.experimental.ignore_errors())
-train_dataset = train_dataset.prefetch(autotune)
+train_dataset, val_dataset = load_fused_imgs_dataset()
+#
+# autotune = tf.data.experimental.AUTOTUNE
+# for element in train_dataset:
+#     preprocess_fused_imgs_dataset(element)
+# train_dataset = train_dataset.map(preprocess_fused_imgs_dataset, num_parallel_calls=autotune)
+# train_dataset = train_dataset.shuffle(8 * batch_size)
+# train_dataset = train_dataset.padded_batch(
+#     batch_size=batch_size, padding_values=(0.0, 1e-8, -1), drop_remainder=True
+# )
+# train_dataset = train_dataset.map(
+#     label_encoder.encode_batch, num_parallel_calls=autotune
+# )
+# train_dataset = train_dataset.apply(tf.data.experimental.ignore_errors())
+# train_dataset = train_dataset.prefetch(autotune)
 
 val_dataset = val_dataset.map(preprocess_data, num_parallel_calls=autotune)
 val_dataset = val_dataset.padded_batch(
