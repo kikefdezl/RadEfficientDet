@@ -10,7 +10,7 @@ Some parts of code have been taken from the NuScenes SDK and modified for this u
 import os
 
 # local libraries
-from data_preprocessing.image_graphics import draw_overlay
+from dataset_preprocessing.image_graphics import draw_overlay
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points

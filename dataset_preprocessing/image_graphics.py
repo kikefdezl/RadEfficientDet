@@ -24,6 +24,18 @@ def draw_overlay(image, points, depths, velocities):
 
 
 def draw_circle(image, point_x, point_y, depth, radius: int = 4):
+    """
+    Draws a circle on an image, and returns the new image
+    Args:
+        image: image object
+        point_x: x coordinate of the center of the circle
+        point_y: y coordinate of the center of the circle
+        depth: distance from the camera of the point.
+        radius: radius of the circle
+
+    Returns:
+        new_img: modified image
+    """
     bgr_color = get_depth_color(depth)
 
     new_img = cv2.circle(image, (point_x, point_y), radius, bgr_color, -1)
