@@ -1,4 +1,7 @@
+### MEDIA FILES ###
+*.png
+
+### IDE / MACHINE SPECIFIC ###
 venv/
 .idea/
-data/
-*.png
+.vscode/

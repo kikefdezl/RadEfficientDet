@@ -1,13 +1,12 @@
 #local
 from models.retinanet import get_backbone, RetinaNetLoss, RetinaNet, LabelEncoder, preprocess_data, DecodePredictions
-from models.utils import load_fused_imgs_dataset
+from models.preprocessing.utils import load_fused_imgs_dataset
 
 #libraries
 import os
 
 #3rd pary libraries
 import tensorflow as tf
-import tensorflow_datasets as tfds
 
 nuscenes_dir = os.environ.get('NUSCENES_DIR')
 
