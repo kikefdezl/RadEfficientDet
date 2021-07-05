@@ -14,26 +14,13 @@ from dataset_preprocessing.image_graphics import draw_overlay
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points
+from config import config
 
 # 3rd party libraries
 import cv2
 import numpy as np
 from pyquaternion import Quaternion
 from tqdm import tqdm
-
-"""
-Use the following variables to modify the use of this file
-"""
-show_images = True  # if True, the fused data is only shown through the screen. If set to false, the images are saved
-# as .png files in the fused_imgs dir
-
-dataset_version = 'mini'  # set as 'mini' for testing, and set as 'trainval' to use the whole dataset.
-
-"""
-Must set up an environment variable 'NUSCENES_DIR' in your OS with the directory of your NuScenes database
-e.g. NUSCENES_DIR = C:/Data/NuScenes
-"""
-data_dir = os.environ.get('NUSCENES_DIR')
 
 
 class Fuser:
@@ -54,7 +41,8 @@ class Fuser:
 
         self.list_of_sample_tokens = []
 
-        for scene in self.nusc.scene:
+        print("Generating list of all sample tokens:")
+        for scene in tqdm(self.nusc.scene):
             first_sample_token = scene['first_sample_token']
             curr_sample = self.nusc.get('sample', first_sample_token)
 
@@ -64,7 +52,7 @@ class Fuser:
                 curr_sample = self.nusc.get('sample', next_token)
             self.list_of_sample_tokens.append(curr_sample['token'])  # this appends the last sample token of the scene
 
-    def fuse_data(self, sample_token, min_dist: float = 1.0, side: str = 'FRONT'):
+    def fuse_data(self, sample_token, min_dist: float = 1.0):
         """
         Args:
             sample_token: single Sample token of the database
@@ -75,6 +63,7 @@ class Fuser:
         # access all the necessary sample data
         sample = self.nusc.get('sample', sample_token)
 
+        side = config['fusion_side']
         if side == 'FRONT':
             cam_data_token = sample['data']['CAM_FRONT']
             radar_data_token = sample['data']['RADAR_FRONT']
@@ -91,19 +80,19 @@ class Fuser:
             cam_data_token = sample['data']['CAM_BACK_LEFT']
             radar_data_token = sample['data']['RADAR_BACK_LEFT']
         else:
-            print("Error, Fuser side < %s > doesn't exist" %side)
-            print("Choose one of the following: FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT, BACK_LEFT")
+            raise Exception("Error, Fuser side < %s > doesn't exist, choose one of the following: FRONT, FRONT_RIGHT, "
+                            "FRONT_LEFT, BACK_RIGHT, BACK_LEFT" % side)
 
         # camera
         cam_data = self.nusc.get('sample_data', cam_data_token)
         cam_filename = cam_data['filename']
-        cam_filename = os.path.join(data_dir, cam_filename)
+        cam_filename = os.path.join(config['data_dir'], cam_filename)
         image = cv2.imread(cam_filename)
 
         # radar
         radar_data = self.nusc.get('sample_data', radar_data_token)
         radar_filename = radar_data['filename']
-        radar_filename = os.path.join(data_dir, radar_filename)
+        radar_filename = os.path.join(config['data_dir'], radar_filename)
 
         # extracting the radar information from the file. The RadarPointCloud.from_file function returns the following:
         # FIELDS x y z dyn_prop id rcs vx vy vx_comp vy_comp is_quality_valid ambig_state x_rms y_rms invalid_state pdh0
@@ -160,24 +149,25 @@ class Fuser:
 
 
 if __name__ == "__main__":
-    if dataset_version == 'mini':
-        nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
-    elif dataset_version == 'trainval':
-        nusc = NuScenes(version='v1.0-trainval', dataroot=data_dir, verbose=True)
+    if config['dataset_version'] == 'mini':
+        nusc = NuScenes(version='v1.0-mini', dataroot=config['data_dir'], verbose=True)
+    elif config['dataset_version'] == 'trainval':
+        nusc = NuScenes(version='v1.0-trainval', dataroot=config['data_dir'], verbose=True)
     else:
-        raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
+        raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval' in the config file.")
     fuser = Fuser(nusc)
-    save_location = os.path.join(data_dir, "fused_imgs")  # creating a new folder for the fused images
+    save_location = os.path.join(config['data_dir'], "fused_imgs")  # creating a new folder for the fused images
 
     # to view the images only, set as True. To save the images into files, set as False
 
     # loop through all the samples to fuse their data
+    fusion_hz = config['fusion_hz']
     for sample_token in tqdm(fuser.get_sample_tokens()):
-        fused_image = fuser.fuse_data(sample_token, side='FRONT')
+        fused_image = fuser.fuse_data(sample_token)
 
-        if show_images:
+        if config['fusion_show_images']:
             cv2.imshow('window_name', fused_image)
-            key = cv2.waitKey(200)
+            key = cv2.waitKey(fusion_hz)
             if key == 27:
                 break
         else:

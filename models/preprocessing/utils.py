@@ -17,15 +17,7 @@ from tqdm import tqdm
 # local libraries
 from dataset_preprocessing.fusion import Fuser
 from dataset_preprocessing.image_graphics import draw_bbox
-
-"""
-Must set up an environment variable 'NUSCENES_DIR' in your OS with the directory of your NuScenes database
-e.g. NUSCENES_DIR = C:/Data/NuScenes
-"""
-data_dir = os.environ.get('NUSCENES_DIR')
-fused_imgs_dir = os.path.join(data_dir, 'fused_imgs/')
-
-dataset_version = 'mini'  # set as 'mini' for troubleshooting (reduces load times)
+from config import config
 
 
 def load_fused_imgs_dataset():
@@ -35,29 +27,57 @@ def load_fused_imgs_dataset():
     Args:
 
     Returns:
-        train_dataset:
-        val_dataset:
+        formatted dataset: a list of size (n_samples, 3), where the 3 objects of the 2nd argument are:
+            1- image_path: path to the image file
+            2- bboxes: list of bounding boxes for the specific sample, of size (n, 4), where n is the number of objects
+                in the image, and 4 refers to the 4 dimensions of the box in the format [x, y, width, height].
+            3- class_ids: list of class_ids for every bounding box, of size (n,)
     """
-
-    if dataset_version == 'mini':
-        nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
-    elif dataset_version == 'trainval':
-        nusc = NuScenes(version='v1.0-trainval', dataroot=data_dir, verbose=True)
+    # check to see if the json dataset file has already been generated
+    if config['dataset_version'] == 'mini':
+        file_dir = os.path.join(config['data_dir'], 'v1.0-mini', 'fused_dataset.json')
+    elif config['dataset_version'] == 'trainval':
+        file_dir = os.path.join(config['data_dir'], 'v1.0-trainval', 'fused_dataset.json')
     else:
         raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-    fuser = Fuser(nusc)
-    list_of_sample_tokens = fuser.get_sample_tokens()
 
-    print("Loading the dataset annotations:")
-    formatted_dataset = []
-    for sample_token in tqdm(list_of_sample_tokens):
-        image, bboxes, class_ids = get_labels(nusc, sample_token)
-        formatted_dataset.append([image, bboxes, class_ids])
+    # if file doesnt exist, generate the JSON file with the dataset and save it.
+    if not os.path.exists(file_dir):
+        if config['dataset_version'] == 'mini':
+            nusc = NuScenes(version='v1.0-mini', dataroot=config['data_dir'], verbose=True)
+            anns_dir = os.path.join(config['data_dir'], 'v1.0-mini', 'image_annotations.json')
+            print("Loading the dataset annotations for dataset version v1.0-mini:")
+        elif config['dataset_version'] == 'trainval':
+            nusc = NuScenes(version='v1.0-trainval', dataroot=config['data_dir'], verbose=True)
+            anns_dir = os.path.join(config['data_dir'], 'v1.0-trainval', 'image_annotations.json')
+            print("Loading the dataset annotations for dataset version v1.0-trainval. This may take a while.")
+        else:
+            raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
+
+        fuser = Fuser(nusc)
+        list_of_sample_tokens = fuser.get_sample_tokens()
+
+        formatted_dataset = []
+        with open(anns_dir, 'r') as _2d_anns_file:
+            _2d_anns_data = json.load(_2d_anns_file)
+            for sample_token in tqdm(list_of_sample_tokens):
+                image_path, bboxes, class_ids = get_sample_labels(nusc, sample_token, _2d_anns_data)
+                formatted_dataset.append([image_path, bboxes, class_ids])
+
+        with open(file_dir, 'w') as dataset_file:
+            json.dump(formatted_dataset, dataset_file)
+            print("Saved the formatted dataset to %s." % file_dir)
+
+    # if the file exists, load the dataset
+    else:
+        with open(file_dir, 'r') as dataset_file:
+            formatted_dataset = json.load(dataset_file)
+            print("Dataset opened.")
 
     return formatted_dataset
 
 
-def get_labels(nusc, sample_token):
+def get_sample_labels(nusc, sample_token, _2d_anns_data):
     """
     Gets the list of bounding boxes and class ids for a specific sample
 
@@ -72,27 +92,15 @@ def get_labels(nusc, sample_token):
     """
 
     # get image
-    image_path = os.path.join(fused_imgs_dir, sample_token + '.png')
-    image = tf.keras.preprocessing.image.load_img(image_path)
-    image = tf.keras.preprocessing.image.img_to_array(image)
+    image_path = os.path.join(config['fused_imgs_dir'], sample_token + '.png')
 
     # get bounding boxes
     sample = nusc.get('sample', sample_token)
     sample_data_token = sample['data']['CAM_FRONT']
 
-    if dataset_version == 'mini':
-        anns_dir = os.path.join(data_dir, 'v1.0-mini', 'image_annotations.json')
-    elif dataset_version == 'trainval':
-        anns_dir = os.path.join(data_dir, 'v1.0-trainval', 'image_annotations.json')
-    else:
-        raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-
-    with open(anns_dir, 'r') as anns_file:
-        data = json.load(anns_file)
-
     bboxes = []
     class_ids = []
-    for annotation in data:
+    for annotation in _2d_anns_data:
         if annotation['sample_data_token'] == sample_data_token:
             bounding_box = annotation['bbox_corners']
             bbox_x = bounding_box[0]
@@ -105,7 +113,7 @@ def get_labels(nusc, sample_token):
             class_ids.append(encoded_class)
 
     """
-    Uncomment the next section for rendering the 2D bboxes and classes (for testing purposes)
+    Uncomment the next section for rendering the 2D bounding boxes and classes (for testing purposes)
     """
     # new_img = cv2.imread(image_path)
     # for i, bbox in enumerate(bboxes):
@@ -117,7 +125,7 @@ def get_labels(nusc, sample_token):
     # cv2.imshow('window', new_img)
     # cv2.waitKey()
 
-    return image, bboxes, class_ids
+    return image_path, bboxes, class_ids
 
 
 def encode_class_id(class_id):
