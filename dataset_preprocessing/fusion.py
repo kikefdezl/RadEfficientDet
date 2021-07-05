@@ -41,8 +41,7 @@ class Fuser:
 
         self.list_of_sample_tokens = []
 
-        print("Generating list of all sample tokens:")
-        for scene in tqdm(self.nusc.scene):
+        for scene in self.nusc.scene:
             first_sample_token = scene['first_sample_token']
             curr_sample = self.nusc.get('sample', first_sample_token)
 

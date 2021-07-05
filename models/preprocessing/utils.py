@@ -59,7 +59,9 @@ def load_fused_imgs_dataset():
 
         formatted_dataset = []
         with open(anns_dir, 'r') as _2d_anns_file:
+            print("Opening 2D annotations JSON file...")
             _2d_anns_data = json.load(_2d_anns_file)
+            print("Done.")
             for sample_token in tqdm(list_of_sample_tokens):
                 image_path, bboxes, class_ids = get_sample_labels(nusc, sample_token, _2d_anns_data)
                 formatted_dataset.append([image_path, bboxes, class_ids])
