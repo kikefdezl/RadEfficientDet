@@ -102,3 +102,26 @@ def get_depth_color(depth=0.0):
     bgr_color = (int(bgr_color[0]), int(bgr_color[1]), int(bgr_color[2]))
 
     return bgr_color
+
+
+def draw_bbox(image, x: int, y: int, width: int, height: int, class_id: str = ''):
+    """
+    draws a 2D bounding box on an image, with the class category
+    Args:
+        image: image object (cv2.imread)
+        x: x pixel of the top left corner
+        y: y pixel of the top left corner
+        width: horizontal pixels of the bounding box
+        height: vertical pixels of the bounding box
+        class_id: class id string to display over the bbox
+
+    Returns:
+        new_img: modified image
+    """
+    pt1 = (int(x), int(y))
+    pt2 = (int(x + width), int(y + height))
+    new_img = cv2.rectangle(image, pt1, pt2, color=(0, 255, 0), thickness=1)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    new_img = cv2.putText(new_img, str(class_id), pt1, font, 0.5, (255, 255, 255), 1)
+
+    return new_img

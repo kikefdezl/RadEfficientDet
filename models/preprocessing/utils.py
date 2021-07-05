@@ -5,17 +5,18 @@ Author: Enrique Fernández-Laguilhoat Sánchez-Biezma
 """
 # default libraries
 import os
-import argparse
+import json
 
 # 3rd party libraries
 import tensorflow as tf
-import tensorflow_datasets as tfds
 import numpy as np
 from nuscenes.nuscenes import NuScenes
-import nuscenes.scripts.export_2d_annotations_as_json as e2daaj
+import cv2
+from tqdm import tqdm
 
 # local libraries
 from dataset_preprocessing.fusion import Fuser
+from dataset_preprocessing.image_graphics import draw_bbox
 
 """
 Must set up an environment variable 'NUSCENES_DIR' in your OS with the directory of your NuScenes database
@@ -38,32 +39,22 @@ def load_fused_imgs_dataset():
         val_dataset:
     """
 
-    # generate a json file with 2D bounding boxes
-    parser = argparse.ArgumentParser(description='Export 2D annotations from reprojections to a .json file.',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--dataroot', type=str, default=data_dir, help="Path where nuScenes is saved.")
-    parser.add_argument('--filename', type=str, default='fused_imgs_annotations.json', help='Output filename.')
-    parser.add_argument('--visibilities', type=str, default=['', '1', '2', '3', '4'],
-                        help='Visibility bins, the higher the number the higher the visibility.', nargs='+')
-    parser.add_argument('--image_limit', type=int, default=-1, help='Number of images to process or -1 to process all.')
     if dataset_version == 'mini':
-        parser.add_argument('--version', type=str, default='v1.0-mini', help='Dataset version.')
+        nusc = NuScenes(version='v1.0-mini', dataroot=data_dir, verbose=True)
     elif dataset_version == 'trainval':
-        parser.add_argument('--version', type=str, default='v1.0-trainval', help='Dataset version.')
+        nusc = NuScenes(version='v1.0-trainval', dataroot=data_dir, verbose=True)
     else:
         raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-    args = parser.parse_args()
-
-    nusc = NuScenes(dataroot=args.dataroot, version=args.version)
-    e2daaj.main(args)
-
     fuser = Fuser(nusc)
     list_of_sample_tokens = fuser.get_sample_tokens()
 
-    for sample_token in list_of_sample_tokens:
-        image, bbox, class_id = get_labels(nusc, sample_token)
+    print("Loading the dataset annotations:")
+    formatted_dataset = []
+    for sample_token in tqdm(list_of_sample_tokens):
+        image, bboxes, class_ids = get_labels(nusc, sample_token)
+        formatted_dataset.append([image, bboxes, class_ids])
 
-    return train_dataset, val_dataset
+    return formatted_dataset
 
 
 def get_labels(nusc, sample_token):
@@ -79,15 +70,81 @@ def get_labels(nusc, sample_token):
         bbox: list of bounding boxes, with shape (num_objects, 4), where each box if of format (x, y, width, height).
         class_id: list of the class id number, with shape (num_objects,)
     """
+
+    # get image
     image_path = os.path.join(fused_imgs_dir, sample_token + '.png')
     image = tf.keras.preprocessing.image.load_img(image_path)
     image = tf.keras.preprocessing.image.img_to_array(image)
 
+    # get bounding boxes
     sample = nusc.get('sample', sample_token)
     sample_data_token = sample['data']['CAM_FRONT']
-    boxes = nusc.get_boxes(sample_data_token)
-    nusc.render_annotation(boxes[0].token)
 
-    bbox = []
-    class_id = []
-    return image, bbox, class_id
+    if dataset_version == 'mini':
+        anns_dir = os.path.join(data_dir, 'v1.0-mini', 'image_annotations.json')
+    elif dataset_version == 'trainval':
+        anns_dir = os.path.join(data_dir, 'v1.0-trainval', 'image_annotations.json')
+    else:
+        raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
+
+    with open(anns_dir, 'r') as anns_file:
+        data = json.load(anns_file)
+
+    bboxes = []
+    class_ids = []
+    for annotation in data:
+        if annotation['sample_data_token'] == sample_data_token:
+            bounding_box = annotation['bbox_corners']
+            bbox_x = bounding_box[0]
+            bbox_y = bounding_box[1]
+            bbox_width = bounding_box[2] - bounding_box[0]
+            bbox_height = bounding_box[3] - bounding_box[1]
+
+            bboxes.append([bbox_x, bbox_y, bbox_width, bbox_height])
+            encoded_class = encode_class_id(annotation['category_name'])
+            class_ids.append(encoded_class)
+
+    """
+    Uncomment the next section for rendering the 2D bboxes and classes (for testing purposes)
+    """
+    # new_img = cv2.imread(image_path)
+    # for i, bbox in enumerate(bboxes):
+    #     bbox_x = bbox[0]
+    #     bbox_y = bbox[1]
+    #     bbox_width = bbox[2]
+    #     bbox_height = bbox[3]
+    #     new_img = draw_bbox(new_img, bbox_x, bbox_y, bbox_width, bbox_height, class_id=class_ids[i])
+    # cv2.imshow('window', new_img)
+    # cv2.waitKey()
+
+    return image, bboxes, class_ids
+
+
+def encode_class_id(class_id):
+    encoder = {
+        'animal': 1,
+        'human.pedestrian.adult': 2,
+        'human.pedestrian.child': 3,
+        'human.pedestrian.construction_worker': 4,
+        'human.pedestrian.personal_mobility': 5,
+        'human.pedestrian.police_officer': 6,
+        'human.pedestrian.stroller': 7,
+        'human.pedestrian.wheelchair': 8,
+        'movable_object.barrier': 9,
+        'movable_object.debris': 10,
+        'movable_object.pushable_pullable': 11,
+        'movable_object.trafficcone': 12,
+        'static_object.bicycle_rack': 13,
+        'vehicle.bicycle': 14,
+        'vehicle.bus.bendy': 15,
+        'vehicle.bus.rigid': 16,
+        'vehicle.car': 17,
+        'vehicle.construction': 18,
+        'vehicle.emergency.ambulance': 19,
+        'vehicle.emergency.police': 20,
+        'vehicle.motorcycle': 21,
+        'vehicle.trailer': 22,
+        'vehicle.truck': 23
+    }
+
+    return encoder[class_id]

@@ -41,7 +41,7 @@ callbacks_list = [
     )
 ]
 
-train_dataset, val_dataset = load_fused_imgs_dataset()
+dataset = load_fused_imgs_dataset()
 #
 # autotune = tf.data.experimental.AUTOTUNE
 # for element in train_dataset:

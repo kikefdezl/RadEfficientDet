@@ -165,8 +165,7 @@ if __name__ == "__main__":
     elif dataset_version == 'trainval':
         nusc = NuScenes(version='v1.0-trainval', dataroot=data_dir, verbose=True)
     else:
-        print("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-        exit(0)
+        raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
     fuser = Fuser(nusc)
     save_location = os.path.join(data_dir, "fused_imgs")  # creating a new folder for the fused images
 
