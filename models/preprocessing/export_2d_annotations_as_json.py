@@ -194,15 +194,15 @@ def main(args):
 
 
 if __name__ == '__main__':
+    dataset_version = config['dataset_version']
+    data_dir = config['data_dir']
+
     parser = argparse.ArgumentParser(description='Export 2D annotations from reprojections to a .json file.',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--dataroot', type=str, default=config['data_dir'], help="Path where nuScenes is saved.")
-    if config['dataset_version'] == 'mini':
-        parser.add_argument('--version', type=str, default='v1.0-mini', help='Dataset version.')
-    elif config['dataset_version'] == 'trainval':
-        parser.add_argument('--version', type=str, default='v1.0-trainval', help='Dataset version.')
-    else:
-        raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval in the config file'.")
+    parser.add_argument('--dataroot', type=str, default=data_dir, help="Path where nuScenes is saved.")
+
+    parser.add_argument('--version', type=str, default=dataset_version, help='Dataset version.')
+
     parser.add_argument('--filename', type=str, default='image_annotations.json', help='Output filename.')
     parser.add_argument('--visibilities', type=str, default=['', '1', '2', '3', '4'],
                         help='Visibility bins, the higher the number the higher the visibility.', nargs='+')

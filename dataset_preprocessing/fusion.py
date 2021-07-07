@@ -148,14 +148,16 @@ class Fuser:
 
 
 if __name__ == "__main__":
-    if config['dataset_version'] == 'mini':
-        nusc = NuScenes(version='v1.0-mini', dataroot=config['data_dir'], verbose=True)
-    elif config['dataset_version'] == 'trainval':
-        nusc = NuScenes(version='v1.0-trainval', dataroot=config['data_dir'], verbose=True)
-    else:
-        raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval' in the config file.")
+
+    dataset_version = config['dataset_version']
+    if dataset_version != 'v1.0-mini' and dataset_version != 'v1.0-trainval':
+        raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
+    data_dir = config['data_dir']
+
+    nusc = NuScenes(version=dataset_version, dataroot=config['data_dir'], verbose=True)
+
     fuser = Fuser(nusc)
-    save_location = os.path.join(config['data_dir'], "fused_imgs")  # creating a new folder for the fused images
+    fused_imgs_dir = config['fused_imgs_dir']
 
     # to view the images only, set as True. To save the images into files, set as False
 
@@ -172,5 +174,5 @@ if __name__ == "__main__":
         else:
             # saving the image
             img_filename = str(sample_token) + '.png'
-            img_filename = os.path.join(save_location, img_filename)
+            img_filename = os.path.join(fused_imgs_dir, img_filename)
             cv2.imwrite(img_filename, fused_image)

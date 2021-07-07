@@ -1,6 +1,5 @@
 #local
-from models.retinanet import get_backbone, RetinaNetLoss, RetinaNet, LabelEncoder, preprocess_data, DecodePredictions
-from models.preprocessing.utils import load_fused_imgs_dataset
+from models.preprocessing.generate_dataset_csv import load_fused_imgs_dataset
 
 #libraries
 import os
@@ -41,7 +40,9 @@ callbacks_list = [
     )
 ]
 
-dataset = load_fused_imgs_dataset()
+formatted_dataset = load_fused_imgs_dataset()
+
+dataset = tf.data.Dataset.from_tensor_slices(formatted_dataset)
 #
 # autotune = tf.data.experimental.AUTOTUNE
 # for element in train_dataset:
