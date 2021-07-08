@@ -9,7 +9,7 @@ config = {
 
     #### FUSION.PY ####
     # to show the fused data when running fusion.py, set as True. If False, the script saves the images as png files
-    # instead
+    # instead.
     'fusion_show_images': True,
     'fusion_side': 'FRONT',  # set as FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT or BACK_LEFT. FRONT recommended: as of
     # now, lateral data can be fused but is unsupported for loading the dataset and training the network

@@ -7,25 +7,26 @@ Author: Enrique Fernández-Laguilhoat Sánchez-Biezma
 import os
 import json
 import csv
+from time import time
 
 # 3rd party libraries
-import tensorflow as tf
-import numpy as np
 from nuscenes.nuscenes import NuScenes
 import cv2
 from tqdm import tqdm
 
 # local libraries
-from dataset_preprocessing.fusion import Fuser
 from dataset_preprocessing.image_graphics import draw_bbox
 from config import config
 
 
-def generate_dataset_csv():
+def generate_dataset_csv(size_threshold=3):
     """
     Generates a csv file containing one annotation per row. As per RetinaNet instructions, the format of each row is:
 
-    # path/to/image.jpg,x1,y1,x2,y2,class_name
+    > path/to/image.jpg,x1,y1,x2,y2,class_name
+    Args:
+        size_threshold: bounding box height or width (in pixels), below which an annotation is deleted. Used for
+        filtering excessively small bounding boxes.
 
     """
 
@@ -50,14 +51,29 @@ def generate_dataset_csv():
             "No annotation data. Must generate 2D annotation JSON file first. Run 'models/preprocessing/export"
             "_2d_annotations_as_json.py'.")
 
-    fuser = Fuser(nusc)
-    list_of_sample_tokens = fuser.get_sample_tokens()
-
-    formatted_dataset = []
     with open(anns_dir, 'r') as _2d_anns_file:
         print("Opening 2D annotations JSON file...")
+        t_start = time()
         _2d_anns_data = json.load(_2d_anns_file)
-        print("Done.")
+        elapsed = round(time() - t_start, 2)
+        print(f"Done opening 2D annotations file in {elapsed} seconds.")
+        print("======")
+
+        # remove annotations with width or height below the threshold
+        print("Filtering 2D annotations...")
+        index = 0
+        removed = 0
+        while index < len(_2d_anns_data):
+            bbox_corners = _2d_anns_data[index]['bbox_corners']
+            if ((bbox_corners[2] - bbox_corners[0]) < size_threshold or
+                    (bbox_corners[3] - bbox_corners[1]) < size_threshold):
+                _2d_anns_data.pop(index)
+                removed += 1
+            else:
+                index += 1
+        print(f"Removed {removed} annotations with width or height below {size_threshold} pixels.")
+        print("======")
+
         with open(csv_file_dir, 'w', encoding='UTF8', newline='') as csv_file:
             csv_writer = csv.writer(csv_file)
             for annotation in tqdm(_2d_anns_data):
@@ -91,10 +107,10 @@ def get_csv_row(nusc, annotation, render_on_screen=False):
 
     # get bounding boxes and class ids
     bounding_box = annotation['bbox_corners']
-    bbox_x1 = bounding_box[0]
-    bbox_y1 = bounding_box[1]
-    bbox_x2 = bounding_box[2]
-    bbox_y2 = bounding_box[3]
+    bbox_x1 = int(bounding_box[0])
+    bbox_y1 = int(bounding_box[1])
+    bbox_x2 = int(bounding_box[2])
+    bbox_y2 = int(bounding_box[3])
 
     class_id = annotation['category_name']
 
@@ -115,7 +131,7 @@ def generate_encoding_csv():
     Generates a CSV file with the dataset encoding (animal = 0, human.pedestrian.adult = 1, ...). As per RetinaNet
     instructions, the format is the following:
 
-    # class_name,id
+    > class_name,id
 
     """
     nuscenes_classes = [
@@ -169,3 +185,4 @@ def generate_encoding_csv():
 if __name__ == '__main__':
     generate_dataset_csv()
     generate_encoding_csv()
+    exit(0)

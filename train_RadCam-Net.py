@@ -1,99 +1,32 @@
-#local
-from models.preprocessing.generate_dataset_csv import load_fused_imgs_dataset
+"""
 
+Author: Enrique Fernández-Laguilhoat Sánchez-Biezma
+
+"""
 #libraries
 import os
+
+#local
+from config import config
+from models.retinanet.keras_retinanet.preprocessing.csv_generator import CSVGenerator
 
 #3rd pary libraries
 import tensorflow as tf
 
-nuscenes_dir = os.environ.get('NUSCENES_DIR')
 
-model_dir = "models/retinanet"
-label_encoder = LabelEncoder()
+def main():
+    data_dir = config['data_dir']
+    dataset_version = config['dataset_version']
+    assert dataset_version == 'v1.0-mini' or dataset_version == 'v1.0-trainval', "The specified dataset version does " \
+                                                                                 "not exist. Select 'mini' or " \
+                                                                                 "'trainval'. "
+    dataset_version_dir = os.path.join(data_dir, dataset_version)
 
-num_classes = 80
-batch_size = 2
+    csv_data_file_path = os.path.join(dataset_version_dir, 'dataset.csv')
+    csv_class_file_path = os.path.join(dataset_version_dir, 'dataset_encoding.csv')
+    csv_generator = CSVGenerator(csv_data_file_path, csv_class_file_path)
 
-learning_rates = [2.5e-06, 0.000625, 0.00125, 0.0025, 0.00025, 2.5e-05]
-learning_rate_boundaries = [125, 250, 500, 240000, 360000]
-learning_rate_fn = tf.optimizers.schedules.PiecewiseConstantDecay(
-    boundaries=learning_rate_boundaries, values=learning_rates
-)
+    print(csv_generator.size())
 
-resnet50_backbone = get_backbone()
-loss_fn = RetinaNetLoss(num_classes)
-model = RetinaNet(num_classes, resnet50_backbone)
-
-optimizer = tf.optimizers.SGD(learning_rate=learning_rate_fn, momentum=0.9)
-model.compile(loss=loss_fn, optimizer=optimizer)
-
-# model.summary()
-
-callbacks_list = [
-    tf.keras.callbacks.ModelCheckpoint(
-        filepath=os.path.join(model_dir, "weights" + "_epoch_{epoch}"),
-        monitor="loss",
-        save_best_only=False,
-        save_weights_only=True,
-        verbose=1,
-    )
-]
-
-formatted_dataset = load_fused_imgs_dataset()
-
-dataset = tf.data.Dataset.from_tensor_slices(formatted_dataset)
-#
-# autotune = tf.data.experimental.AUTOTUNE
-# for element in train_dataset:
-#     preprocess_fused_imgs_dataset(element)
-# train_dataset = train_dataset.map(preprocess_fused_imgs_dataset, num_parallel_calls=autotune)
-# train_dataset = train_dataset.shuffle(8 * batch_size)
-# train_dataset = train_dataset.padded_batch(
-#     batch_size=batch_size, padding_values=(0.0, 1e-8, -1), drop_remainder=True
-# )
-# train_dataset = train_dataset.map(
-#     label_encoder.encode_batch, num_parallel_calls=autotune
-# )
-# train_dataset = train_dataset.apply(tf.data.experimental.ignore_errors())
-# train_dataset = train_dataset.prefetch(autotune)
-
-val_dataset = val_dataset.map(preprocess_data, num_parallel_calls=autotune)
-val_dataset = val_dataset.padded_batch(
-    batch_size=1, padding_values=(0.0, 1e-8, -1), drop_remainder=True
-)
-val_dataset = val_dataset.map(label_encoder.encode_batch, num_parallel_calls=autotune)
-val_dataset = val_dataset.apply(tf.data.experimental.ignore_errors())
-val_dataset = val_dataset.prefetch(autotune)
-
-# Uncomment the following lines, when training on full dataset
-# train_steps_per_epoch = dataset_info.splits["train"].num_examples // batch_size
-# val_steps_per_epoch = \
-#     dataset_info.splits["validation"].num_examples // batch_size
-
-# train_steps = 4 * 100000
-# epochs = train_steps // train_steps_per_epoch
-
-epochs = 1
-
-# Running 100 training and 50 validation steps,
-# remove `.take` when training on the full dataset
-
-model.fit(
-    train_dataset.take(100),
-    validation_data=val_dataset.take(50),
-    epochs=epochs,
-    callbacks=callbacks_list,
-    verbose=1,
-)
-
-# Change this to `model_dir` when not using the downloaded weights
-weights_dir = "D:\data"
-
-latest_checkpoint = tf.train.latest_checkpoint(weights_dir)
-model.load_weights(latest_checkpoint)
-
-image = tf.keras.Input(shape=[None, None, 3], name="image")
-predictions = model(image, training=False)
-detections = DecodePredictions(confidence_threshold=0.5)(image, predictions)
-inference_model = tf.keras.Model(inputs=image, outputs=detections)
+if __name__ == '__main__':
+    main()
