@@ -5,7 +5,7 @@ config = {
     'fused_imgs_dir': os.path.join(os.environ.get('NUSCENES_DIR'), 'fused_imgs'),
 
     # set as 'v1.0-trainval' or 'v1.0-mini' (mini for testing purposes, trainval for the whole dataset)
-    'dataset_version': 'v1.0-trainval',
+    'dataset_version': 'v1.0-mini',
 
     #### FUSION.PY ####
     # to show the fused data when running fusion.py, set as True. If False, the script saves the images as png files

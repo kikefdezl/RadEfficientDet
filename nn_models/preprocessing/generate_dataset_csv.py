@@ -48,7 +48,7 @@ def generate_dataset_csv(size_threshold=3):
     anns_dir = os.path.join(dataset_version_dir, 'image_annotations.json')
     if not os.path.exists(anns_dir):
         raise Exception(
-            "No annotation data. Must generate 2D annotation JSON file first. Run 'models/preprocessing/export"
+            "No annotation data. Must generate 2D annotation JSON file first. Run 'nn_models/preprocessing/export"
             "_2d_annotations_as_json.py'.")
 
     with open(anns_dir, 'r') as _2d_anns_file:
@@ -185,4 +185,3 @@ def generate_encoding_csv():
 if __name__ == '__main__':
     generate_dataset_csv()
     generate_encoding_csv()
-    exit(0)
