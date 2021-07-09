@@ -1,3 +1,0 @@
-[submodule "models/retinanet"]
-	path = models/retinanet
-	url = https://github.com/fizyr/keras-retinanet
