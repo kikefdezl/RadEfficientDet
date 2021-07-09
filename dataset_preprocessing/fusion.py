@@ -159,8 +159,6 @@ if __name__ == "__main__":
     fuser = Fuser(nusc)
     fused_imgs_dir = config['fused_imgs_dir']
 
-    # to view the images only, set as True. To save the images into files, set as False
-
     # loop through all the samples to fuse their data
     fusion_hz = config['fusion_hz']
     for sample_token in tqdm(fuser.get_sample_tokens()):
