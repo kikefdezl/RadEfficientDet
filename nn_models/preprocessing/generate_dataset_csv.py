@@ -7,6 +7,7 @@ Author: Enrique Fernández-Laguilhoat Sánchez-Biezma
 import os
 import json
 import csv
+from random import shuffle
 from time import time
 
 # 3rd party libraries
@@ -19,14 +20,19 @@ from dataset_preprocessing.image_graphics import draw_bbox
 from config import config
 
 
-def generate_dataset_csv(size_threshold=3):
+def generate_dataset_csv(size_threshold=3, shuffle_data=True, validation_split: float = 0.2, overwrite=False):
     """
-    Generates a csv file containing one annotation per row. As per RetinaNet instructions, the format of each row is:
+    Generates two csv files (training and validation) containing one annotation per row. As per RetinaNet instructions,
+    the format of each row is:
 
     > path/to/image.jpg,x1,y1,x2,y2,class_name
     Args:
-        size_threshold: bounding box height or width (in pixels), below which an annotation is deleted. Used for
-        filtering excessively small bounding boxes.
+        overwrite       : set as True to overwrite files if they are already on disk. If not, the program will exit upon
+                        finding the files
+        validation_split: float value to determine the percentage of data to save to the validation CSV file
+        shuffle_data    : set as true to shuffle all the parameters before creating the CSV file
+        size_threshold  : bounding box height or width (in pixels), below which an annotation is deleted. Used for
+                        filtering excessively small bounding boxes.
 
     """
 
@@ -37,11 +43,20 @@ def generate_dataset_csv(size_threshold=3):
     dataset_version_dir = os.path.join(data_dir, dataset_version)
     print("Generating the dataset CSV for dataset version %s:" % dataset_version)
 
-    # check if the CSV file is already there
-    csv_file_dir = os.path.join(dataset_version_dir, 'dataset.csv')
-    if os.path.exists(csv_file_dir):
-        print("Dataset CSV file already exists at %s" % csv_file_dir)
-        return 0
+    # check if the CSV files are already there
+    csv_train_file_dir = os.path.join(dataset_version_dir, 'train_dataset.csv')
+    csv_val_file_dir = os.path.join(dataset_version_dir, 'val_dataset.csv')
+    if not overwrite:
+        if os.path.exists(csv_train_file_dir) and os.path.exists(csv_val_file_dir):
+            print("======")
+            print("Dataset CSV files already exist at:")
+            print(csv_train_file_dir)
+            print(csv_val_file_dir)
+            print("======")
+            return 0
+
+    # check that the validation split is between 0 and 1
+    assert 0.0 <= validation_split <= 1.0, "Incorrect validation_split value. It must be a float value between 0 & 1."
 
     nusc = NuScenes(version=dataset_version, dataroot=data_dir, verbose=True)
 
@@ -74,13 +89,27 @@ def generate_dataset_csv(size_threshold=3):
         print(f"Removed {removed} annotations with width or height below {size_threshold} pixels.")
         print("======")
 
-        with open(csv_file_dir, 'w', encoding='UTF8', newline='') as csv_file:
-            csv_writer = csv.writer(csv_file)
-            for annotation in tqdm(_2d_anns_data):
+        # shuffle the data if desired, and split into 80% train, 20% validation
+        if shuffle_data:
+            shuffle(_2d_anns_data)
+        _2d_anns_data_train = _2d_anns_data[:int(len(_2d_anns_data) * (1 - validation_split))]
+        _2d_anns_data_val = _2d_anns_data[int(len(_2d_anns_data) * (1 - validation_split)):]
+
+        with open(csv_train_file_dir, 'w', encoding='UTF8', newline='') as csv_train_file:
+            csv_train_file.truncate(0)
+            csv_writer = csv.writer(csv_train_file)
+            for annotation in tqdm(_2d_anns_data_train):
                 csv_row = get_csv_row(nusc, annotation, render_on_screen=False)
                 csv_writer.writerow(csv_row)
+            print(f"Saved the formatted train dataset to {csv_train_file_dir}")
 
-    print("Saved the formatted dataset to %s." % csv_file_dir)
+        with open(csv_val_file_dir, 'w', encoding='UTF8', newline='') as csv_val_file:
+            csv_val_file.truncate(0)
+            csv_writer = csv.writer(csv_val_file)
+            for annotation in tqdm(_2d_anns_data_val):
+                csv_row = get_csv_row(nusc, annotation, render_on_screen=False)
+                csv_writer.writerow(csv_row)
+            print(f"Saved the formatted validation dataset to {csv_val_file_dir}")
 
 
 def get_csv_row(nusc, annotation, render_on_screen=False):
@@ -129,7 +158,7 @@ def generate_encoding_csv():
     """
 
     Generates a CSV file with the dataset encoding (animal = 0, human.pedestrian.adult = 1, ...). As per RetinaNet
-    instructions, the format is the following:
+    instructions, the format of each row is the following:
 
     > class_name,id
 
@@ -170,7 +199,10 @@ def generate_encoding_csv():
     # check if the CSV file is already there
     csv_file_dir = os.path.join(dataset_version_dir, 'dataset_encoding.csv')
     if os.path.exists(csv_file_dir):
-        print("Dataset encoding CSV file already exists at %s" % os.path.dirname(csv_file_dir))
+        print("======")
+        print("Dataset encoding CSV file already exists at:")
+        print(csv_file_dir)
+        print("======")
         return 0
 
     with open(csv_file_dir, 'w', encoding='UTF8', newline='') as csv_file:
@@ -183,5 +215,5 @@ def generate_encoding_csv():
 
 
 if __name__ == '__main__':
-    generate_dataset_csv()
+    generate_dataset_csv(size_threshold=3, shuffle_data=True, validation_split=0.2, overwrite=True)
     generate_encoding_csv()
