@@ -24,9 +24,11 @@ def main():
                                                                                  "'trainval'. "
     dataset_version_dir = os.path.join(data_dir, dataset_version)
 
-    csv_data_file_path = os.path.join(dataset_version_dir, 'dataset.csv')
+    csv_train_data_file_path = os.path.join(dataset_version_dir, 'train_dataset.csv')
+    csv_val_data_file_path = os.path.join(dataset_version_dir, 'val_dataset.csv')
     csv_class_file_path = os.path.join(dataset_version_dir, 'dataset_encoding.csv')
-    csv_generator = CSVGenerator(csv_data_file_path, csv_class_file_path)
+    train_dataset = CSVGenerator(csv_train_data_file_path, csv_class_file_path)
+    val_dataset = CSVGenerator(csv_val_data_file_path, csv_class_file_path)
 
     model = models.backbone('resnet50').retinanet(num_classes=23)
 
@@ -40,7 +42,9 @@ def main():
 
     model.summary()
 
-    model.fit(x=csv_generator, epochs=2)
+    model.fit(x=train_dataset, validation_data=val_dataset, epochs=1)
+
+    model.save_model('nn_models/saved/RadCamNet')
 
 if __name__ == '__main__':
     main()
