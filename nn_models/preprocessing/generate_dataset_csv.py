@@ -215,5 +215,11 @@ def generate_encoding_csv():
 
 
 if __name__ == '__main__':
-    generate_dataset_csv(size_threshold=3, shuffle_data=True, validation_split=0.2, overwrite=True)
+    size_threshold = config['size_threshold']
+    shuffle_data = config['shuffle_data']
+    validation_split = config['validation_split']
+    overwrite = config['overwrite']
+
+    generate_dataset_csv(size_threshold=size_threshold, shuffle_data=shuffle_data, validation_split=validation_split,
+                         overwrite=overwrite)
     generate_encoding_csv()
