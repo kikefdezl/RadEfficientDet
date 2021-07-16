@@ -13,7 +13,7 @@ This script generates the new directories and ZIP files in the same path, with t
 dir: ('path_to_NuScenes/fused_imgs_part_*/NuScenes/fused_imgs/')
 zip: ('path_to_NuScenes/fused_imgs_part_*.zip)
 
-The annotations are also zipped into 'path_to_NuScenes/metadata.zip')
+The annotations are also zipped into 'path_to_NuScenes/fused_imgs_metadata.zip')
 """
 # standard libraries
 import os
