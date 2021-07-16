@@ -159,17 +159,21 @@ if __name__ == "__main__":
     fuser = Fuser(nusc)
     fused_imgs_dir = config['fused_imgs_dir']
 
-    # loop through all the samples to fuse their data
-    fusion_hz = config['fusion_hz']
-    for sample_token in tqdm(fuser.get_sample_tokens()):
-        fused_image = fuser.fuse_data(sample_token)
-
-        if config['fusion_show_images']:
+    # loop through all the samples to fuse their data.
+    show_imgs = config['fusion_show_images']
+    # if show_imgs = True, render the images on screen
+    if show_imgs:
+        fusion_hz = config['fusion_hz']
+        for sample_token in tqdm(fuser.get_sample_tokens()):
+            fused_image = fuser.fuse_data(sample_token)
             cv2.imshow('window_name', fused_image)
             key = cv2.waitKey(fusion_hz)
             if key == 27:
                 break
-        else:
+    # if show_imgs = False, save the files to the fused_imgs dir
+    else:
+        for sample_token in tqdm(fuser.get_sample_tokens()):
+            fused_image = fuser.fuse_data(sample_token)
             # saving the image
             img_filename = str(sample_token) + '.png'
             img_filename = os.path.join(fused_imgs_dir, img_filename)
