@@ -71,7 +71,7 @@ def split_imgs_to_zips(n_dirs=7):
     # split the file names into 'n_dirs' arrays of equal size
     split_files = [file_names[i:i + array_len] for i in range(0, len(file_names), array_len)]
     if len(split_files) > n_dirs:
-        split_files[n_dirs - 1].append(split_files[-1])
+        split_files[n_dirs - 1].extend(split_files[-1])
         split_files.pop(-1)
 
     # copy the files to the new directories
