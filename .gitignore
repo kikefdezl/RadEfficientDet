@@ -5,3 +5,7 @@
 venv/
 .idea/
 .vscode/
+
+### SAVED WEIGHTS/MODELS ###
+*.h5
+saved/
