@@ -3,17 +3,19 @@
 Author: Enrique Fernández-Laguilhoat Sánchez-Biezma
 
 """
-#libraries
+# libraries
 import os
-import random
 
-#local
+# local
 from config import config
 from nn_models.retinanet.keras_retinanet.preprocessing.csv_generator import CSVGenerator
-from nn_models.retinanet.keras_retinanet import models, losses
+from nn_models.retinanet.keras_retinanet import losses, models
+from nn_models.retinanet.keras_retinanet.callbacks import coco as cococb
+from nn_models.callbacks import SaveToGDriveCallback
 
-#3rd pary libraries
+# 3rd party libraries
 import tensorflow as tf
+from tensorflow import keras
 
 
 def main():
@@ -34,17 +36,29 @@ def main():
 
     model.compile(
         loss={
-            'regression'    : losses.smooth_l1(),
+            'regression': losses.smooth_l1(),
             'classification': losses.focal()
         },
         optimizer=tf.keras.optimizers.Adam(lr=1e-5, clipnorm=0.001)
     )
 
+    # callbacks
+    callbacks_list = [
+        keras.callbacks.ModelCheckpoint(
+            '/nn_models/saved/RadCamNetTest',
+            monitor="loss",
+            verbose=1,
+        ),
+        SaveToGDriveCallback('/nn_models/saved/RadCamNetTest')
+    ]
+
+
     model.summary()
 
-    model.fit(x=train_dataset, validation_data=val_dataset, epochs=1)
+    model.fit(x=train_dataset, validation_data=val_dataset, epochs=1, callbacks=[cococb.CocoEval(val_dataset)])
 
     model.save_model('nn_models/saved/RadCamNet')
+
 
 if __name__ == '__main__':
     main()
