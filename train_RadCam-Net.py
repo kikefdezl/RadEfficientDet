@@ -48,14 +48,15 @@ def main():
             '/nn_models/saved/RadCamNetTest',
             monitor="loss",
             verbose=1,
+            save_weights_only=True,
         ),
-        SaveToGDriveCallback('/nn_models/saved/RadCamNetTest')
+        SaveToGDriveCallback('/nn_models/saved/RadCamNetTest', '/nn_models/RadCamNetTest')
     ]
 
 
     model.summary()
 
-    model.fit(x=train_dataset, validation_data=val_dataset, epochs=1, callbacks=[cococb.CocoEval(val_dataset)])
+    model.fit(x=train_dataset, validation_data=val_dataset, epochs=3, callbacks=callbacks_list)
 
     model.save_model('nn_models/saved/RadCamNet')
 

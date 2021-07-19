@@ -1,5 +1,8 @@
 import os
 
+if os.environ.get('NUSCENES_DIR') is None:
+    raise Exception("Environment variable 'NUSCENES_DIR' has not been set.")
+
 config = {
     #### GENERAL PARAMETERS ####
     'data_dir': os.environ.get('NUSCENES_DIR'),  # DO NOT MODIFY. Must set up an environment variable 'NUSCENES_DIR' in
