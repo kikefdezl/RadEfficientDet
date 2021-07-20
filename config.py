@@ -8,11 +8,11 @@ config = {
     'data_dir': os.environ.get('NUSCENES_DIR'),  # DO NOT MODIFY. Must set up an environment variable 'NUSCENES_DIR' in
     # your OS with the directory of your NuScenes database: e.g. NUSCENES_DIR = C:/Data/NuScenes
 
-    'fused_imgs_dir': os.path.join(os.environ.get('NUSCENES_DIR'), 'fused_imgs'),  # Set up the name of the folder where
-    # the images with the fused radar data will be saved to.
-
     'dataset_version': 'v1.0-mini',  # set as 'v1.0-trainval' or 'v1.0-mini' (mini for testing purposes, trainval for
     # the whole dataset)
+
+    'fused_imgs_dir': os.path.join(os.environ.get('NUSCENES_DIR'), 'fused_imgs'),  # Set up the name of the folder where
+    # the images with the fused radar data will be saved to.
 
 
     #### FUSION.PY  PARAMETERS ####
