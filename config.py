@@ -35,5 +35,6 @@ config = {
     'size_threshold': 3,  # set the minimum bounding box height/width (in pixels). Smaller bboxes are deleted.
     'shuffle_data': True,  # set as True to shuffle the dataset CSV
     'validation_split': 0.2,  # percentage of the dataset to assign as validation data
-    'overwrite': True  # set as True to overwrite existing CSV file. If False, an exception is returned if CSV exists.
+    'overwrite': True,  # set as True to overwrite existing CSV file. If False, an exception is returned if CSV exists.
+    'for_GColab': True  # this changes images path for use with GColab
 }
