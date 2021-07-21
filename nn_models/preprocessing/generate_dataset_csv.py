@@ -29,6 +29,13 @@ class CSVFileGenerator:
         self.overwrite = overwrite
         self.for_GColab = for_GColab
 
+        self.dataset_version = config['dataset_version']
+        self.data_dir = config['data_dir']
+        if for_GColab:
+            self.fused_imgs_dir = os.path.join('/content/NuScenes/fused_imgs/')
+        else:
+            self.fused_imgs_dir = os.path.join(self.data_dir, 'fused_imgs')
+
     def generate_dataset_csv(self):
         """
         Generates two csv files (training and validation) containing one annotation per row. As per RetinaNet instructions,
@@ -45,21 +52,18 @@ class CSVFileGenerator:
 
         """
 
-        dataset_version = config['dataset_version']
-        if dataset_version != 'v1.0-mini' and dataset_version != 'v1.0-trainval':
+        if self.dataset_version != 'v1.0-mini' and self.dataset_version != 'v1.0-trainval':
             raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-        data_dir = config['data_dir']
-        dataset_version_dir = os.path.join(data_dir, dataset_version)
-        print("Generating the dataset CSV for dataset version %s:" % dataset_version)
+        dataset_version_dir = os.path.join(self.data_dir, self.dataset_version)
 
         # check if the CSV files are already there
-        if for_GColab:
+        if self.for_GColab:
             csv_train_file_dir = os.path.join(dataset_version_dir, 'train_dataset_GColab.csv')
             csv_val_file_dir = os.path.join(dataset_version_dir, 'val_dataset_GColab.csv')
         else:
             csv_train_file_dir = os.path.join(dataset_version_dir, 'train_dataset.csv')
             csv_val_file_dir = os.path.join(dataset_version_dir, 'val_dataset.csv')
-        if not overwrite:
+        if not self.overwrite:
             if os.path.exists(csv_train_file_dir) and os.path.exists(csv_val_file_dir):
                 print("======")
                 print("Dataset CSV files already exist at:")
@@ -69,9 +73,9 @@ class CSVFileGenerator:
                 return 0
 
         # check that the validation split is between 0 and 1
-        assert 0.0 <= validation_split <= 1.0, "Incorrect validation_split value. It must be a float value between 0 & 1."
+        assert 0.0 <= self.validation_split <= 1.0, "Incorrect validation_split value. It must be a float value between 0 & 1."
 
-        nusc = NuScenes(version=dataset_version, dataroot=data_dir, verbose=True)
+        nusc = NuScenes(version=self.dataset_version, dataroot=self.data_dir, verbose=True)
 
         # check that the 2D annotations file exists
         anns_dir = os.path.join(dataset_version_dir, 'image_annotations.json')
@@ -94,21 +98,22 @@ class CSVFileGenerator:
             removed = 0
             while index < len(_2d_anns_data):
                 bbox_corners = _2d_anns_data[index]['bbox_corners']
-                if ((bbox_corners[2] - bbox_corners[0]) < size_threshold or
-                        (bbox_corners[3] - bbox_corners[1]) < size_threshold):
+                if ((bbox_corners[2] - bbox_corners[0]) < self.size_threshold or
+                        (bbox_corners[3] - bbox_corners[1]) < self.size_threshold):
                     _2d_anns_data.pop(index)
                     removed += 1
                 else:
                     index += 1
-            print(f"Removed {removed} annotations with width or height below {size_threshold} pixels.")
+            print(f"Removed {removed} annotations with width or height below {self.size_threshold} pixels.")
             print("======")
 
             # shuffle the data if desired, and split into 80% train, 20% validation
-            if shuffle_data:
+            if self.shuffle_data:
                 shuffle(_2d_anns_data)
-            _2d_anns_data_train = _2d_anns_data[:int(len(_2d_anns_data) * (1 - validation_split))]
-            _2d_anns_data_val = _2d_anns_data[int(len(_2d_anns_data) * (1 - validation_split)):]
+            _2d_anns_data_train = _2d_anns_data[:int(len(_2d_anns_data) * (1 - self.validation_split))]
+            _2d_anns_data_val = _2d_anns_data[int(len(_2d_anns_data) * (1 - self.validation_split)):]
 
+            print("Generating the dataset CSV for dataset version %s:" % self.dataset_version)
             with open(csv_train_file_dir, 'w', encoding='UTF8', newline='') as csv_train_file:
                 csv_train_file.truncate(0)
                 csv_writer = csv.writer(csv_train_file)
@@ -138,16 +143,16 @@ class CSVFileGenerator:
         Returns: List of the values per row, with the following format: [image_path, bbox_x1, bbox_y1,
             bbox_x2, bbox_y2, class_id] (CSV writer separates them with commas automatically).
         """
-        fused_imgs_dir = config['fused_imgs_dir']
 
         sample_data_token = annotation['sample_data_token']
         sample_data = nusc.get('sample_data', sample_data_token)
         sample_token = sample_data['sample_token']
 
         # get image
-        if for_GColab:
-            fused_imgs_dir = os.path.join('\content', 'NuScenes', 'fused_imgs')
-        image_path = os.path.join(fused_imgs_dir, sample_token + '.png')
+        if self.for_GColab:
+            image_path = str(self.fused_imgs_dir) + sample_token + '.png'
+        else:
+            image_path = os.path.join(self.fused_imgs_dir, sample_token + '.png')
 
         # get bounding boxes and class ids
         bounding_box = annotation['bbox_corners']
@@ -203,12 +208,10 @@ class CSVFileGenerator:
             'vehicle.truck'
         ]
 
-        dataset_version = config['dataset_version']
-        if dataset_version != 'v1.0-mini' and dataset_version != 'v1.0-trainval':
+        if self.dataset_version != 'v1.0-mini' and self.dataset_version != 'v1.0-trainval':
             raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-        data_dir = config['data_dir']
-        dataset_version_dir = os.path.join(data_dir, dataset_version)
-        print("Generating the dataset CSV for dataset version %s:" % dataset_version)
+        dataset_version_dir = os.path.join(self.data_dir, self.dataset_version)
+        print("Generating the dataset encoding CSV for dataset version %s:" % self.dataset_version)
 
         # check if the CSV file is already there
         csv_file_dir = os.path.join(dataset_version_dir, 'dataset_encoding.csv')
