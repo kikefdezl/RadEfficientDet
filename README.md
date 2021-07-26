@@ -13,6 +13,9 @@ A Deep Learning project for obstacle detection fusing Camera and Radar data.
 - TQDM `pip install tqdm`
 - Cache Tools `pip install cachetools`
 
+To install all dependencies automatically:
+`pip install -r requirements.txt`
+
 
 # 1.- Generate fused data
 

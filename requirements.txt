@@ -1,0 +1,8 @@
+nuscenes-devkit
+tensorflow
+matplotlib
+opencv_python
+sklearn
+pyquaternion
+tqdm
+cachetools
