@@ -172,7 +172,7 @@ def main(args):
 
     # Get tokens for all camera images.
     sample_data_camera_tokens = [s['token'] for s in nusc.sample_data if (s['sensor_modality'] == 'camera') and
-                                 s['is_key_frame']]
+                                 s['is_key_frame'] and (s['channel'] == 'CAM_FRONT')]
 
     # For debugging purposes: Only produce the first n images.
     if args.image_limit != -1:
@@ -182,7 +182,7 @@ def main(args):
     reprojections = []
     for token in tqdm(sample_data_camera_tokens):
         reprojection_records = get_2d_boxes(token, args.visibilities)
-        reprojections.extend(reprojection_records)
+        reprojections.extend(reprojection_records) 
 
     # Save to a .json file.
     dest_path = os.path.join(args.dataroot, args.version)

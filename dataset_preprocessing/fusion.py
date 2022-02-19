@@ -14,7 +14,7 @@ from dataset_preprocessing.image_graphics import draw_overlay
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points
-from config import config
+import yaml
 
 # 3rd party libraries
 import cv2
@@ -146,8 +146,9 @@ class Fuser:
     def get_sample_tokens(self):
         return self.list_of_sample_tokens
 
-
-if __name__ == "__main__":
+def main():
+    with open('config.yaml') as cfg_file:
+        cfg = yaml.safe_load(cfg_file)
 
     dataset_version = config['dataset_version']
     if dataset_version != 'v1.0-mini' and dataset_version != 'v1.0-trainval':
@@ -178,3 +179,7 @@ if __name__ == "__main__":
             img_filename = str(sample_token) + '.png'
             img_filename = os.path.join(fused_imgs_dir, img_filename)
             cv2.imwrite(img_filename, fused_image)
+
+if __name__ == "__main__":
+    main()
+

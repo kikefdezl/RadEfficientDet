@@ -1,0 +1,3 @@
+[submodule "EfficientRaDet"]
+	path = EfficientRaDet
+	url = https://github.com/kikefdezl/EfficientRaDet.git
