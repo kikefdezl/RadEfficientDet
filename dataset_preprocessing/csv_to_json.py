@@ -2,7 +2,6 @@ import json
 import os
 from tqdm import tqdm
 from random import shuffle
-
 import pandas as pd
 
 def main():

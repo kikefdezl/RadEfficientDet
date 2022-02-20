@@ -1,0 +1,47 @@
+nuscenes_dir: '/mnt/TFM_KIKE/Nuscenes'
+dataset_version: 'v1.0-mini'  # v1.0-mini or v1.0-trainval
+dataset_save_dir: '/mnt/TFM_KIKE/DATASETS/fused_imgs_v3_no_visibility_0'
+
+FUSION:
+  sensor_side: 'FRONT'  # Possible values: FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT, BACK_LEFT
+  show_images: False  # bool. Set as True to display the images or False to save them.
+  fusion_hz: 0  # frames per recond when showing the images. Set as 0 for press to pass image.
+
+GENERATE_DATASET_CSV:
+  size_threshold: 3
+  shuffle_data: True
+  validation_split: 0.1
+  overwrite: True
+
+EXPORT_2D_ANNOTATIONS_AS_JSON:
+  sensor_side: 'CAM_FRONT'  # Possible values: CAM_FRONT, CAM_FRONT_RIGHT, CAM_FRONT_LEFT, CAM_BACK_RIGHT, CAM_BACK_LEFT
+  visibilities: ['2', '3', '4']  # accepted values: 1, 2, 3, 4
+  
+BUILD_RECORDS:
+  CLASSES:
+    animal: 1
+    human.pedestrian.adult: 2
+    human.pedestrian.child: 3
+    human.pedestrian.construction_worker: 4
+    human.pedestrian.personal_mobility: 5
+    human.pedestrian.police_officer: 6
+    human.pedestrian.stroller: 7
+    human.pedestrian.wheelchair: 8
+    movable_object.barrier: 9
+    movable_object.debris: 10
+    movable_object.pushable_pullable: 11
+    movable_object.trafficcone: 12
+    static_object.bicycle_rack: 13
+    vehicle.bicycle: 14
+    vehicle.bus.bendy: 15
+    vehicle.bus.rigid: 16
+    vehicle.car: 17
+    vehicle.construction: 18
+    vehicle.emergency.ambulance: 19
+    vehicle.emergency.police: 20
+    vehicle.motorcycle: 21
+    vehicle.trailer: 22
+    vehicle.truck: 23
+
+SPLIT_FUSED_IMGS_TO_ZIPS:
+  n_dirs: 5

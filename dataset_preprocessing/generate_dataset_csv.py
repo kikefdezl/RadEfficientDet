@@ -11,29 +11,33 @@ import json
 import csv
 from random import shuffle
 from time import time
-import sys
 
 # 3rd party libraries
 from nuscenes.nuscenes import NuScenes
-import cv2
 from tqdm import tqdm
 
 # local libraries
-sys.path.append("..")
-from image_graphics import draw_bbox
 import yaml
 
 
 class CSVFileGenerator:
-    def __init__(self, image_dir, size_threshold=3, shuffle_data=True, validation_split: float = 0.2, overwrite=False):
+    def __init__(self,
+                 dataset_dir,
+                 nuscenes_dir,
+                 dataset_version,
+                 size_threshold=3,
+                 shuffle_data=True,
+                 validation_split: float = 0.2,
+                 overwrite=False):
         self.size_threshold = size_threshold
         self.shuffle_data = shuffle_data
         self.validation_split = validation_split
         self.overwrite = overwrite
 
-        self.dataset_version = config['dataset_version']
-        self.data_dir = config['data_dir']
-        self.fused_imgs_dir = image_dir
+        self.dataset_version = dataset_version
+        self.data_dir = nuscenes_dir
+        self.dataset_dir = dataset_dir
+        self.imgs_dir = os.path.join(dataset_dir, 'imgs')
 
     def generate_dataset_csv(self):
         """
@@ -52,11 +56,10 @@ class CSVFileGenerator:
 
         if self.dataset_version != 'v1.0-mini' and self.dataset_version != 'v1.0-trainval':
             raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-        dataset_version_dir = os.path.join(self.data_dir, self.dataset_version)
 
         # check if the CSV files are already there
-        csv_train_file_dir = os.path.join(dataset_version_dir, 'train_dataset.csv')
-        csv_val_file_dir = os.path.join(dataset_version_dir, 'val_dataset.csv')
+        csv_train_file_dir = os.path.join(self.dataset_dir, 'train.csv')
+        csv_val_file_dir = os.path.join(self.dataset_dir, 'val.csv')
         if not self.overwrite:
             if os.path.exists(csv_train_file_dir) and os.path.exists(csv_val_file_dir):
                 print("======")
@@ -72,7 +75,7 @@ class CSVFileGenerator:
         nusc = NuScenes(version=self.dataset_version, dataroot=self.data_dir, verbose=True)
 
         # check that the 2D annotations file exists
-        anns_dir = os.path.join(dataset_version_dir, 'image_annotations.json')
+        anns_dir = os.path.join(self.dataset_dir, 'image_annotations.json')
         if not os.path.exists(anns_dir):
             raise Exception(
                 "No annotation data. Must generate 2D annotation JSON file first. Run '/dataset_preprocessing/export"
@@ -118,7 +121,7 @@ class CSVFileGenerator:
 
         # shuffle and split into trainval
         shuffle(all_data)
-        split_idx = int(len(all_data) * validation_split)
+        split_idx = int(len(all_data) * self.validation_split)
         data_val = all_data[:split_idx]
         data_train = all_data[split_idx:]
 
@@ -128,7 +131,7 @@ class CSVFileGenerator:
             csv_writer = csv.writer(csv_train_file)
             for image in tqdm(data_train):
                 for annotation in image['annotations']:
-                    filename = os.path.join(self.fused_imgs_dir, image['filename'])
+                    filename = os.path.join(self.imgs_dir, image['filename'])
                     xmin = int(annotation['bbox_corners'][0])
                     ymin = int(annotation['bbox_corners'][1])
                     xmax = int(annotation['bbox_corners'][2])
@@ -144,7 +147,7 @@ class CSVFileGenerator:
             csv_writer = csv.writer(csv_val_file)
             for image in tqdm(data_val):
                 for annotation in image['annotations']:
-                    filename = os.path.join(self.fused_imgs_dir, image['filename'])
+                    filename = os.path.join(self.imgs_dir, image['filename'])
                     xmin = int(annotation['bbox_corners'][0])
                     ymin = int(annotation['bbox_corners'][1])
                     xmax = int(annotation['bbox_corners'][2])
@@ -192,11 +195,10 @@ class CSVFileGenerator:
 
         if self.dataset_version != 'v1.0-mini' and self.dataset_version != 'v1.0-trainval':
             raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-        dataset_version_dir = os.path.join(self.data_dir, self.dataset_version)
         print("Generating the dataset encoding CSV for dataset version %s:" % self.dataset_version)
 
         # check if the CSV file is already there
-        csv_file_dir = os.path.join(dataset_version_dir, 'dataset_encoding.csv')
+        csv_file_dir = os.path.join(self.dataset_dir, 'dataset_encoding.csv')
         if os.path.exists(csv_file_dir):
             print("======")
             print("Dataset encoding CSV file already exists at:")
@@ -212,18 +214,21 @@ class CSVFileGenerator:
 
         print("Saved the dataset encoding to %s." % csv_file_dir)
 
-
-if __name__ == '__main__':
+def main():
     with open('../config.yaml') as yf:
         config = yaml.safe_load(yf)
 
-    image_dir = config['dataset_save_dir']
-    size_threshold = config['generate_dataset_CSV']['size_threshold']
-    shuffle_data = config['generate_dataset_CSV']['shuffle_data']
-    validation_split = config['generate_dataset_CSV']['validation_split']
-    overwrite = config['generate_dataset_CSV']['overwrite']
+    dataset_dir = config['dataset_save_dir']
+    nuscenes_dir = config['nuscenes_dir']
+    dataset_version = config['dataset_version']
+    size_threshold = config['GENERATE_DATASET_CSV']['size_threshold']
+    shuffle_data = config['GENERATE_DATASET_CSV']['shuffle_data']
+    validation_split = config['GENERATE_DATASET_CSV']['validation_split']
+    overwrite = config['GENERATE_DATASET_CSV']['overwrite']
 
-    generator = CSVFileGenerator(image_dir=image_dir,
+    generator = CSVFileGenerator(dataset_dir=dataset_dir,
+                                 nuscenes_dir=nuscenes_dir,
+                                 dataset_version=dataset_version,
                                  size_threshold=size_threshold,
                                  shuffle_data=shuffle_data,
                                  validation_split=validation_split,
@@ -231,3 +236,6 @@ if __name__ == '__main__':
 
     generator.generate_dataset_csv()
     generator.generate_encoding_csv()
+
+if __name__ == '__main__':
+    main()

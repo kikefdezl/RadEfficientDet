@@ -21,14 +21,17 @@ from shutil import copyfile, rmtree, make_archive, copytree
 import glob
 
 # local
-from config import config
+import yaml
+
+with open('../config.yaml') as yaml_file:
+    cfg = yaml.safe_load(yaml_file)
 
 # 3rd party libraries
 from tqdm import tqdm
 
 
 def zip_metadata():
-    data_dir = config['data_dir']
+    data_dir = cfg['nuscenes_dir']
 
     # remove the existing metadata tree and ZIP file
     rmtree(os.path.join(data_dir, 'fused_imgs_metadata'), ignore_errors=True)
@@ -49,16 +52,17 @@ def zip_metadata():
 
 
 def split_imgs_to_zips(n_dirs=7):
-    data_dir = config['data_dir']
-    fused_imgs_dir = config['fused_imgs_dir']
+    nuscenes_dir = cfg['nuscenes_dir']
+    dataset_dir = cfg['dataset_save_dir']
+    fused_imgs_dir = os.path.join(dataset_dir, 'imgs')
 
     # check that the fused imgs dataset exists
     if not os.path.exists(fused_imgs_dir):
         raise Exception("fused_imgs directory does not exist. You must generate it first with the fusion.py script.")
 
     # delete the existing split directories and zip files
-    existing_dirs = glob.glob(os.path.join(data_dir, "fused_imgs_part_*/"))
-    existing_zips = glob.glob(os.path.join(data_dir, "fused_imgs_part_*.zip"))
+    existing_dirs = glob.glob(os.path.join(nuscenes_dir, "fused_imgs_part_*/"))
+    existing_zips = glob.glob(os.path.join(nuscenes_dir, "fused_imgs_part_*.zip"))
     for existing_dir in existing_dirs:
         rmtree(existing_dir)
     for existing_zip in existing_zips:
@@ -76,7 +80,7 @@ def split_imgs_to_zips(n_dirs=7):
 
     # copy the files to the new directories
     for i in range(n_dirs):
-        part_dir = os.path.join(data_dir, f'fused_imgs_part_{i}')
+        part_dir = os.path.join(nuscenes_dir, f'fused_imgs_part_{i}')
         save_dir = os.path.join(part_dir, 'NuScenes', 'fused_imgs')
         os.makedirs(save_dir)
         print(f"Part {i}/{n_dirs - 1}: Copying the image files to new directory...")
@@ -86,11 +90,11 @@ def split_imgs_to_zips(n_dirs=7):
             copyfile(old_dir, new_dir)
 
         print(f"Part {i}/{n_dirs - 1}: Creating ZIP file...")
-        make_archive(os.path.join(data_dir, f'fused_imgs_part_{i}'), 'zip', root_dir=part_dir)
+        make_archive(os.path.join(nuscenes_dir, f'fused_imgs_part_{i}'), 'zip', root_dir=part_dir)
 
 
 if __name__ == "__main__":
-    n_dirs = config['n_dirs']
+    n_dirs = cfg['SPLIT_FUSED_IMGS_TO_ZIPS']['n_dirs']
 
     zip_metadata()
     split_imgs_to_zips(n_dirs=n_dirs)

@@ -1,8 +1,8 @@
 """
-Usage:
-  # From the data set dir
-  # Create train data:
-  python ../generate_tfrecord.py --csv_input=data/train_labels.csv  --output_path=train.record
+
+Author: Enrique Fernández-Laguilhoat Sánchez-Biezma
+
+This file is used to generate tfrecords from CSV files to train in the Tensorflow Object Detection API.
 """
 from __future__ import division
 from __future__ import print_function
@@ -14,10 +14,10 @@ import tensorflow as tf
 from object_detection.utils import dataset_util
 from tqdm import tqdm
 from time import time
+import yaml
+import os
 
 from collections import namedtuple
-
-import records_config as config
 
 
 def generate_class_file(classes, classes_file):
@@ -39,7 +39,7 @@ def split(df, group):
     return [data(filename, gb.get_group(x)) for filename, x in zip(gb.groups.keys(), gb.groups)]
 
 
-def create_tf_example(group):
+def create_tf_example(group, classes_dict):
     filename = group.filename
 
     encoded = tf.io.gfile.GFile(filename, "rb").read()
@@ -63,7 +63,7 @@ def create_tf_example(group):
         ymins.append(row['ymin'] / height)
         ymaxs.append(row['ymax'] / height)
         classes_text.append(row['class'].encode('utf8'))
-        class_id = config.CLASSES[row['class']]
+        class_id = classes_dict[row['class']]
         classes.append(class_id)
 
     filename = filename.encode('utf8')
@@ -85,27 +85,37 @@ def create_tf_example(group):
 
 
 def main(_):
-    generate_class_file(config.CLASSES, config.CLASSES_FILE)
+    with open('../config.yaml') as yaml_file:
+        cfg = yaml.safe_load(yaml_file)
+
+    dataset_save_dir = cfg['dataset_save_dir']
+    classes_file = os.path.join(dataset_save_dir, 'classes.pbtxt')
+    generate_class_file(cfg['BUILD_RECORDS']['CLASSES'], classes_file)
+
+    train_csv = os.path.join(dataset_save_dir, 'train.csv')
+    val_csv = os.path.join(dataset_save_dir, 'val.csv')
+    train_record = os.path.join(dataset_save_dir, 'train.record')
+    val_record = os.path.join(dataset_save_dir, 'val.record')
 
     time_start = time()
-    print(f"Creating train.record at {config.TRAIN_RECORD}")
-    with tf.io.TFRecordWriter(config.TRAIN_RECORD) as writer_train:
-        examples_train = pd.read_csv(config.TRAIN_ANNOT_PATH, names=["filename", "xmin", "ymin", "xmax", "ymax", "class"])
+    print(f"Creating train.record at {train_record}")
+    with tf.io.TFRecordWriter(train_record) as writer_train:
+        examples_train = pd.read_csv(train_csv, names=["filename", "xmin", "ymin", "xmax", "ymax", "class"])
         grouped_train = split(examples_train, 'filename')
 
         for group in tqdm(grouped_train):
-            tf_example = create_tf_example(group)
+            tf_example = create_tf_example(group, cfg['BUILD_RECORDS']['CLASSES'])
             writer_train.write(tf_example.SerializeToString())
     print(f"Done in {(time() - time_start):.2f} seconds.")
 
     time_start = time()
-    print(f"Creating val.record at {config.VAL_RECORD}")
-    with tf.io.TFRecordWriter(config.VAL_RECORD) as writer_val:
-        examples_val = pd.read_csv(config.VAL_ANNOT_PATH, names=["filename", "xmin", "ymin", "xmax", "ymax", "class"])
+    print(f"Creating val.record at {val_record}")
+    with tf.io.TFRecordWriter(val_record) as writer_val:
+        examples_val = pd.read_csv(val_csv, names=["filename", "xmin", "ymin", "xmax", "ymax", "class"])
         grouped_val = split(examples_val, 'filename')
 
         for group in tqdm(grouped_val):
-            tf_example = create_tf_example(group)
+            tf_example = create_tf_example(group, cfg['BUILD_RECORDS']['CLASSES'])
             writer_val.write(tf_example.SerializeToString())
     print(f"Done in {(time() - time_start):.2f} seconds.")
 

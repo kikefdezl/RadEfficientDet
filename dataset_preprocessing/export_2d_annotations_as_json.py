@@ -16,6 +16,7 @@ import json
 import os
 from collections import OrderedDict
 from typing import List, Tuple, Union
+import yaml
 
 import numpy as np
 from pyquaternion.quaternion import Quaternion
@@ -24,7 +25,6 @@ from tqdm import tqdm
 
 from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.geometry_utils import view_points
-from config import config
 
 
 def post_process_coords(corner_coords: List,
@@ -165,14 +165,14 @@ def get_2d_boxes(sample_data_token: str, visibilities: List[str]) -> List[Ordere
     return repro_recs
 
 
-def main(args):
+def main(args, cfg):
     """Generates 2D re-projections of the 3D bounding boxes present in the dataset."""
 
     print("Generating 2D reprojections of the nuScenes dataset")
 
     # Get tokens for all camera images.
     sample_data_camera_tokens = [s['token'] for s in nusc.sample_data if (s['sensor_modality'] == 'camera') and
-                                 s['is_key_frame'] and (s['channel'] == 'CAM_FRONT')]
+                                 s['is_key_frame'] and (s['channel'] == cfg['EXPORT_2D_ANNOTATIONS_AS_JSON']['sensor_side'])]
 
     # For debugging purposes: Only produce the first n images.
     if args.image_limit != -1:
@@ -181,34 +181,33 @@ def main(args):
     # Loop through the records and apply the re-projection algorithm.
     reprojections = []
     for token in tqdm(sample_data_camera_tokens):
-        reprojection_records = get_2d_boxes(token, args.visibilities)
+        reprojection_records = get_2d_boxes(token, cfg['EXPORT_2D_ANNOTATIONS_AS_JSON']['visibilities'])
         reprojections.extend(reprojection_records) 
 
     # Save to a .json file.
-    dest_path = os.path.join(args.dataroot, args.version)
+    dest_path = cfg['dataset_save_dir']
     if not os.path.exists(dest_path):
         os.makedirs(dest_path)
-    with open(os.path.join(args.dataroot, args.version, args.filename), 'w') as fh:
+    with open(os.path.join(dest_path, args.filename), 'w') as fh:
         json.dump(reprojections, fh, sort_keys=True, indent=4)
 
-    print("Saved the 2D re-projections under {}".format(os.path.join(args.dataroot, args.version, args.filename)))
+    print("Saved the 2D re-projections under {}".format(os.path.join(dest_path, args.filename)))
 
 
 if __name__ == '__main__':
-    dataset_version = config['dataset_version']
-    data_dir = config['data_dir']
+    with open('../config.yaml') as yaml_file:
+        cfg = yaml.safe_load(yaml_file)
+    dataset_version = cfg['dataset_version']
+    nuscenes_dir = cfg['nuscenes_dir']
 
     parser = argparse.ArgumentParser(description='Export 2D annotations from reprojections to a .json file.',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--dataroot', type=str, default=data_dir, help="Path where nuScenes is saved.")
 
     parser.add_argument('--version', type=str, default=dataset_version, help='Dataset version.')
 
     parser.add_argument('--filename', type=str, default='image_annotations.json', help='Output filename.')
-    parser.add_argument('--visibilities', type=str, default=['', '1', '2', '3', '4'],
-                        help='Visibility bins, the higher the number the higher the visibility.', nargs='+')
     parser.add_argument('--image_limit', type=int, default=-1, help='Number of images to process or -1 to process all.')
     args = parser.parse_args()
 
-    nusc = NuScenes(dataroot=args.dataroot, version=args.version)
-    main(args)
+    nusc = NuScenes(dataroot=nuscenes_dir, version=dataset_version)
+    main(args, cfg)
