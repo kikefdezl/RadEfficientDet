@@ -10,7 +10,7 @@ Some parts of code have been taken from the NuScenes SDK and modified for this u
 import os
 
 # local libraries
-from dataset_preprocessing.image_graphics import draw_overlay
+from dataset_preprocessing.image_graphics import draw_overlay, draw_overlay_v2, draw_radar_maps
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points
@@ -24,10 +24,11 @@ from tqdm import tqdm
 
 
 class Fuser:
-    def __init__(self, nusc):
+    def __init__(self, nusc, config={}):
         """
         Initializes a data fuser for the NuScenes database
         """
+        self.cfg = config
         self.nusc = nusc
         self.nusc_explorer = NuScenesExplorer(self.nusc)
         self.list_of_sample_tokens = []
@@ -51,18 +52,8 @@ class Fuser:
                 curr_sample = self.nusc.get('sample', next_token)
             self.list_of_sample_tokens.append(curr_sample['token'])  # this appends the last sample token of the scene
 
-    def fuse_data(self, sample_token, min_dist: float = 1.0):
-        """
-        Args:
-            sample_token: single Sample token of the database
-
-        Returns:
-            fused_image: image containing the radar data fused into the camera image.
-        """
-        # access all the necessary sample data
-        sample = self.nusc.get('sample', sample_token)
-
-        side = config['fusion_side']
+    def _get_sample_data(self, sample, min_dist):
+        side = self.cfg['FUSION']['sensor_side']
         if side == 'FRONT':
             cam_data_token = sample['data']['CAM_FRONT']
             radar_data_token = sample['data']['RADAR_FRONT']
@@ -85,13 +76,13 @@ class Fuser:
         # camera
         cam_data = self.nusc.get('sample_data', cam_data_token)
         cam_filename = cam_data['filename']
-        cam_filename = os.path.join(config['data_dir'], cam_filename)
+        cam_filename = os.path.join(self.cfg['nuscenes_dir'], cam_filename)
         image = cv2.imread(cam_filename)
 
         # radar
         radar_data = self.nusc.get('sample_data', radar_data_token)
         radar_filename = radar_data['filename']
-        radar_filename = os.path.join(config['data_dir'], radar_filename)
+        radar_filename = os.path.join(self.cfg['nuscenes_dir'], radar_filename)
 
         # extracting the radar information from the file. The RadarPointCloud.from_file function returns the following:
         # FIELDS x y z dyn_prop id rcs vx vy vx_comp vy_comp is_quality_valid ambig_state x_rms y_rms invalid_state pdh0
@@ -139,46 +130,93 @@ class Fuser:
         depths = depths[mask]
         velocities = radar_point_cloud.points[8:10, mask]
 
+        return image, points, depths, velocities, cam_filename
+
+    def overlay_radar_data(self, sample_token, min_dist: float = 1.0):
+        """
+        Args:
+            sample_token: single Sample token of the database
+
+        Returns:
+            fused_image: image containing the radar data fused into the camera image.
+        """
+        # access all the necessary sample data
+        sample = self.nusc.get('sample', sample_token)
+
+        image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
+
         fused_img = draw_overlay(image, points, depths, velocities)
 
-        return fused_img
+        return fused_img, camera_filename
+
+    def overlay_radar_data_v2(self, sample_token, min_dist: float = 1.0):
+        """
+        Args:
+            sample_token: single Sample token of the database
+
+        Returns:
+            fused_image: image containing the radar data fused into the camera image.
+        """
+        # access all the necessary sample data
+        sample = self.nusc.get('sample', sample_token)
+
+        image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
+
+        fused_img = draw_overlay_v2(image, points, depths, velocities)
+
+        return fused_img, camera_filename
+
+
+    def create_radar_maps(self, sample_token, min_dist: float = 1.0):
+        sample = self.nusc.get('sample', sample_token)
+
+        image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
+
+        radar_maps = draw_radar_maps(image, points, depths, velocities, n_layers=5)
+
+        return radar_maps, camera_filename
 
     def get_sample_tokens(self):
         return self.list_of_sample_tokens
 
 def main():
-    with open('config.yaml') as cfg_file:
+    with open('../config.yaml') as cfg_file:
         cfg = yaml.safe_load(cfg_file)
 
-    dataset_version = config['dataset_version']
+    dataset_version = cfg['dataset_version']
     if dataset_version != 'v1.0-mini' and dataset_version != 'v1.0-trainval':
         raise Exception("The specified dataset version does not exist. Select 'mini' or 'trainval'.")
-    data_dir = config['data_dir']
+    nuscenes_dir = cfg['nuscenes_dir']
 
-    nusc = NuScenes(version=dataset_version, dataroot=config['data_dir'], verbose=True)
+    nusc = NuScenes(version=dataset_version, dataroot=nuscenes_dir, verbose=True)
 
-    fuser = Fuser(nusc)
-    fused_imgs_dir = config['fused_imgs_dir']
+    fuser = Fuser(nusc, config=cfg)
+    dataset_save_dir = cfg['dataset_save_dir']
 
     # loop through all the samples to fuse their data.
-    show_imgs = config['fusion_show_images']
+    show_imgs = cfg['FUSION']['show_images']
     # if show_imgs = True, render the images on screen
     if show_imgs:
-        fusion_hz = config['fusion_hz']
+        fusion_hz = cfg['FUSION']['fusion_hz']
         for sample_token in tqdm(fuser.get_sample_tokens()):
-            fused_image = fuser.fuse_data(sample_token)
+            fused_image = fuser.overlay_radar_data(sample_token)
             cv2.imshow('window_name', fused_image)
             key = cv2.waitKey(fusion_hz)
             if key == 27:
                 break
     # if show_imgs = False, save the files to the fused_imgs dir
     else:
+        fused_imgs_dir = os.path.join(dataset_save_dir, 'imgs')
+        if not os.path.exists(fused_imgs_dir):
+            os.mkdir(fused_imgs_dir)
         for sample_token in tqdm(fuser.get_sample_tokens()):
-            fused_image = fuser.fuse_data(sample_token)
+            # fused_image, camera_filename = fuser.overlay_radar_data(sample_token)
             # saving the image
-            img_filename = str(sample_token) + '.png'
-            img_filename = os.path.join(fused_imgs_dir, img_filename)
-            cv2.imwrite(img_filename, fused_image)
+            radar_maps, camera_filename = fuser.create_radar_maps(sample_token)
+            for idx, map in enumerate(radar_maps):
+                img_filename = os.path.splitext(os.path.basename(camera_filename))[0] + f'_radar_P{idx+3}.jpg'
+                full_path = os.path.join(fused_imgs_dir, img_filename)
+                cv2.imwrite(full_path, map)
 
 if __name__ == "__main__":
     main()
