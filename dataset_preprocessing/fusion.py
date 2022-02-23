@@ -8,6 +8,7 @@ Some parts of code have been taken from the NuScenes SDK and modified for this u
 
 # default libraries
 import os
+import shutil
 
 # local libraries
 from dataset_preprocessing.image_graphics import draw_overlay, draw_overlay_v2, draw_radar_maps
@@ -144,6 +145,7 @@ class Fuser:
         sample = self.nusc.get('sample', sample_token)
 
         image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
+        camera_filename = os.path.basename(camera_filename)
 
         fused_img = draw_overlay(image, points, depths, velocities)
 
@@ -161,6 +163,7 @@ class Fuser:
         sample = self.nusc.get('sample', sample_token)
 
         image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
+        camera_filename = os.path.basename(camera_filename)
 
         fused_img = draw_overlay_v2(image, points, depths, velocities)
 
@@ -171,10 +174,11 @@ class Fuser:
         sample = self.nusc.get('sample', sample_token)
 
         image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
+        camera_filename = os.path.basename(camera_filename)
 
         radar_maps = draw_radar_maps(image, points, depths, velocities, n_layers=5)
 
-        return radar_maps, camera_filename
+        return image, radar_maps, camera_filename
 
     def get_sample_tokens(self):
         return self.list_of_sample_tokens
@@ -206,17 +210,26 @@ def main():
                 break
     # if show_imgs = False, save the files to the fused_imgs dir
     else:
-        fused_imgs_dir = os.path.join(dataset_save_dir, 'imgs')
-        if not os.path.exists(fused_imgs_dir):
-            os.mkdir(fused_imgs_dir)
+        saved_imgs_dir = os.path.join(dataset_save_dir, 'imgs')
+        if not os.path.exists(saved_imgs_dir):
+            os.mkdir(saved_imgs_dir)
+        else:
+            shutil.rmtree(saved_imgs_dir)
+            os.mkdir(saved_imgs_dir)
         for sample_token in tqdm(fuser.get_sample_tokens()):
-            # fused_image, camera_filename = fuser.overlay_radar_data(sample_token)
             # saving the image
-            radar_maps, camera_filename = fuser.create_radar_maps(sample_token)
+            image, radar_maps, camera_filename = fuser.create_radar_maps(sample_token)
+            full_path = os.path.join(saved_imgs_dir, camera_filename)
+            cv2.imwrite(full_path, image)
             for idx, map in enumerate(radar_maps):
-                img_filename = os.path.splitext(os.path.basename(camera_filename))[0] + f'_radar_P{idx+3}.jpg'
-                full_path = os.path.join(fused_imgs_dir, img_filename)
-                cv2.imwrite(full_path, map)
+                full_path_map = os.path.splitext(full_path)[0] + f'_radar_P{7-idx}.jpg'
+                cv2.imwrite(full_path_map, map)
+
+        # for sample_token in tqdm(fuser.get_sample_tokens()):
+        #     fused_image, camera_filename = fuser.overlay_radar_data_v2(sample_token)
+        #     # saving the image
+        #     full_path = os.path.join(saved_imgs_dir, os.path.basename(camera_filename))
+        #     cv2.imwrite(full_path, fused_image)
 
 if __name__ == "__main__":
     main()

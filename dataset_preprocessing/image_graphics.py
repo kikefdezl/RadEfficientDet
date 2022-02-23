@@ -25,13 +25,17 @@ def draw_overlay(image, points, depths, velocities):
 def draw_overlay_v2(image, points, depths, velocities):
     # TODO: IMPLEMENT SMARTER VERSION OF DRAW OVERLAY
     points = points.transpose()
+    velocities = velocities.transpose()
 
-    new_img = image
-    for i, point in enumerate(points):
+    overlay = image.copy()
+    for point, depth, velocity in zip(points, depths, velocities):
         point_x, point_y, point_z = point.astype(int)
-        vel_x, vel_y = velocities[:, i]
-        new_img = draw_circle(image, point_x, point_y, depths[i])
-        new_img = draw_vector(new_img, point_x, point_y, depths[i], vel_x, vel_y)
+        vel_x, vel_y = velocity
+        radius = int(250/depth)
+        overlay = draw_circle(overlay, point_x, point_y, depth, radius)
+        overlay = draw_vector(overlay, point_x, point_y, depth, vel_x, vel_y)
+
+    new_img = cv2.addWeighted(overlay, 0.5, image, 0.5, 0)
 
     return new_img
 
@@ -58,7 +62,8 @@ def draw_radar_maps(image, points, depths, velocities, n_layers=5, radar_range=(
         for point, depth, velocity in zip(applicable_points, applicable_depths, applicable_velocities):
             point_x, point_y, point_z = point.astype(int)
             vel_x, vel_y = velocity
-            map = draw_circle(map, point_x, point_y, depth)
+            radius = 25
+            map = draw_circle(map, point_x, point_y, depth, radius)
             map = draw_vector(map, point_x, point_y, depth, vel_x, vel_y)
 
         maps.append(map)
