@@ -1,3 +1,6 @@
-[submodule "EfficientDet"]
-	path = EfficientDet
-	url = https://github.com/kikefdezl/EfficientDet.git
+[submodule "CamEfficientDet"]
+	path = CamEfficientDet
+	url = https://github.com/kikefdezl/CamEfficientDet.git
+[submodule "RadEfficientDet"]
+	path = RadEfficientDet
+	url = https://github.com/kikefdezl/RadEfficientDet.git
