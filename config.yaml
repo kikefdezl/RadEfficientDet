@@ -1,5 +1,5 @@
 nuscenes_dir: '/mnt/TFM_KIKE/Nuscenes'
-dataset_version: 'v1.0-mini'  # v1.0-mini or v1.0-trainval
+dataset_version: 'v1.0-trainval'  # v1.0-mini or v1.0-trainval
 dataset_save_dir: '/mnt/TFM_KIKE/DATASETS/fused_imgs_v3_no_visibility_0'
 
 FUSION:
