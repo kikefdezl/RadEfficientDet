@@ -72,7 +72,7 @@ class CSVFileGenerator:
         # check that the validation split is between 0 and 1
         assert 0.0 <= self.validation_split <= 1.0, "Incorrect validation_split value. It must be a float value between 0 & 1."
 
-        nusc = NuScenes(version=self.dataset_version, dataroot=self.data_dir, verbose=True)
+        # nusc = NuScenes(version=self.dataset_version, dataroot=self.data_dir, verbose=True)
 
         # check that the 2D annotations file exists
         anns_dir = os.path.join(self.dataset_dir, 'image_annotations.json')
@@ -114,7 +114,6 @@ class CSVFileGenerator:
         print("Done.")
 
         # TODO: ADD IMAGES THAT DONT HAVE ANNOTATIONS
-
 
         # convert the dict to a list
         all_data = [value for (key, value) in all_data.items()]
