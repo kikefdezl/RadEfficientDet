@@ -1,0 +1,3 @@
+[submodule "EfficientDet"]
+	path = EfficientDet
+	url = https://github.com/kikefdezl/EfficientDet.git
