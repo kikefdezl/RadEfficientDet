@@ -11,7 +11,7 @@ import os
 import shutil
 
 # local libraries
-from dataset_preprocessing.image_graphics import draw_overlay, draw_overlay_v2, draw_radar_maps
+from image_graphics import draw_overlay, draw_overlay_v2, draw_radar_maps
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points
@@ -222,6 +222,7 @@ def main():
             full_path = os.path.join(saved_imgs_dir, camera_filename)
             cv2.imwrite(full_path, image)
             for idx, map in enumerate(radar_maps):
+                map = cv2.cvtColor(map, cv2.COLOR_BGR2GRAY)
                 full_path_map = os.path.splitext(full_path)[0] + f'_radar_P{7-idx}.jpg'
                 cv2.imwrite(full_path_map, map)
 
