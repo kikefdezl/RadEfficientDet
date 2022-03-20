@@ -72,6 +72,42 @@ def draw_radar_maps(image, points, depths, velocities, n_layers=5, radar_range=(
 
     # return maps
 
+def draw_radar_maps_v2(image, points, depths, velocities, n_layers=5, radar_range=(0, 250), checkerboard_path=None):
+    points = points.transpose()
+    velocities = velocities.transpose()
+    # divide the 0-250m range exponentially
+    n_divisions = sum([2**i for i in range(n_layers-1)])
+    meters_per_division = radar_range[1]/n_divisions
+    values = [(2**i) * meters_per_division for i in range(n_layers-1)]
+    values.insert(0, 0.0)
+    values.append(99999999.9)
+    if checkerboard_path:
+        checkerboard_img = cv2.imread(checkerboard_path)
+
+    image_h = image.shape[0]
+    image_w = image.shape[1]
+    maps = []
+    for idx, val in enumerate(values[1:]):
+        applicables = [(depth < val) and (depth > values[idx]) for depth in depths]
+        applicable_depths = depths[applicables]
+        applicable_points = points[applicables]
+        applicable_velocities = velocities[applicables]
+
+        map = np.zeros((image_h, image_w, 3), np.uint8)
+        for point, depth, velocity in zip(applicable_points, applicable_depths, applicable_velocities):
+            point_x, point_y, point_z = point.astype(int)
+            vel_x, vel_y = velocity
+            radius = int(256 // depth)
+            map = draw_white_circle(map, point_x, point_y, radius)
+            map = draw_white_vector(map, point_x, point_y, vel_x, vel_y)
+        map = cv2.bitwise_and(checkerboard_img, map)
+
+        maps.append(map)
+
+    return maps
+
+    # return maps
+
 
 
 def draw_depth_circle(image, point_x, point_y, depth, radius: int = 4):

@@ -11,7 +11,7 @@ import os
 import shutil
 
 # local libraries
-from image_graphics import draw_overlay, draw_overlay_v2, draw_radar_maps
+from image_graphics import draw_overlay, draw_overlay_v2, draw_radar_maps, draw_radar_maps_v2
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points
@@ -170,13 +170,14 @@ class Fuser:
         return fused_img, camera_filename
 
 
-    def create_radar_maps(self, sample_token, min_dist: float = 1.0):
+    def create_radar_maps(self, sample_token, min_dist: float = 1.0, checkerboard_dir=None):
         sample = self.nusc.get('sample', sample_token)
 
         image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
         camera_filename = os.path.basename(camera_filename)
 
-        radar_maps = draw_radar_maps(image, points, depths, velocities, n_layers=5)
+        # radar_maps = draw_radar_maps(image, points, depths, velocities, n_layers=5)
+        radar_maps = draw_radar_maps_v2(image, points, depths, velocities, n_layers=5, checkerboard_path=checkerboard_dir)
 
         return image, radar_maps, camera_filename
 
@@ -218,7 +219,8 @@ def main():
             os.mkdir(saved_imgs_dir)
         for sample_token in tqdm(fuser.get_sample_tokens()):
             # saving the image
-            image, radar_maps, camera_filename = fuser.create_radar_maps(sample_token)
+            image, radar_maps, camera_filename = fuser.create_radar_maps(sample_token,
+                                                                         checkerboard_dir=cfg['FUSION']['checkerboard_1600x900_img_path'])
             full_path = os.path.join(saved_imgs_dir, camera_filename)
             cv2.imwrite(full_path, image)
             for idx, map in enumerate(radar_maps):
