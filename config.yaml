@@ -1,11 +1,12 @@
 nuscenes_dir: '/mnt/TFM_KIKE/Nuscenes'
 dataset_version: 'v1.0-trainval'  # v1.0-mini or v1.0-trainval
-dataset_save_dir: '/mnt/TFM_KIKE/DATASETS/fused_imgs_v3_no_visibility_0'
+dataset_save_dir: '/mnt/TFM_KIKE/DATASETS/fused_imgs_v4_no_visibility_0'
 
 FUSION:
   sensor_side: 'FRONT'  # Possible values: FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT, BACK_LEFT
   show_images: False  # bool. Set as True to display the images or False to save them.
   fusion_hz: 0  # frames per recond when showing the images. Set as 0 for press to pass image.
+  checkerboard_1600x900_img_path: "/mnt/TFM_KIKE/DATASETS/fused_imgs_v4_no_visibility_0/checkerboard1.png"
 
 GENERATE_DATASET_CSV:
   size_threshold: 3
@@ -45,3 +46,5 @@ BUILD_RECORDS:
 
 SPLIT_FUSED_IMGS_TO_ZIPS:
   n_dirs: 5
+
+GET_NIGHT_RAIN_VAL:
