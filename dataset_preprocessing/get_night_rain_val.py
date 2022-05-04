@@ -15,7 +15,7 @@ def main():
 
     list_of_night_rain_imgs = []
     for scene in tqdm(nusc.scene):
-        conditions = ['Night', 'night', 'Rain', 'rain', 'Fog', 'fog']
+        conditions = ['Night', 'night', 'Rain', 'rain', 'Fog', 'fog', 'Snow', 'snow']
         if any(condition in scene['description'] for condition in conditions):
             print(scene['description'])
             first_sample_token = scene['first_sample_token']
