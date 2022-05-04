@@ -100,7 +100,8 @@ def draw_radar_maps_v2(image, points, depths, velocities, n_layers=5, radar_rang
             radius = int(256 // depth)
             map = draw_white_circle(map, point_x, point_y, radius)
             map = draw_white_vector(map, point_x, point_y, vel_x, vel_y)
-        map = cv2.bitwise_and(checkerboard_img, map)
+        if checkerboard_path:
+            map = cv2.bitwise_and(checkerboard_img, map)
 
         maps.append(map)
 
