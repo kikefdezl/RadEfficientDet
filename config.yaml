@@ -1,12 +1,10 @@
-nuscenes_dir: '/mnt/TFM_KIKE/Nuscenes'
-dataset_version: 'v1.0-trainval'  # v1.0-mini or v1.0-trainval
-dataset_save_dir: '/mnt/TFM_KIKE/DATASETS/fused_imgs_v4_no_visibility_0'
+nuscenes_dir: 'D:/data/nuscenes'
+dataset_version: 'v1.0-mini'  # v1.0-mini or v1.0-trainval
+dataset_save_dir: 'C:/Users/Kike/Documents/tmp_nuscenes_dataset'
 
-FUSION:
-  sensor_side: 'FRONT'  # Possible values: FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT, BACK_LEFT
-  show_images: False  # bool. Set as True to display the images or False to save them.
-  fusion_hz: 0  # frames per recond when showing the images. Set as 0 for press to pass image.
-  checkerboard_1600x900_img_path: "/mnt/TFM_KIKE/DATASETS/fused_imgs_v4_no_visibility_0/checkerboard1.png"
+EXPORT_2D_ANNOTATIONS_AS_JSON:
+  sensor_side: 'CAM_FRONT'  # Possible values: CAM_FRONT, CAM_FRONT_RIGHT, CAM_FRONT_LEFT, CAM_BACK_RIGHT, CAM_BACK_LEFT
+  visibilities: ['4']  # accepted values: 1, 2, 3, 4
 
 GENERATE_DATASET_CSV:
   size_threshold: 3
@@ -14,9 +12,11 @@ GENERATE_DATASET_CSV:
   validation_split: 0.1
   overwrite: True
 
-EXPORT_2D_ANNOTATIONS_AS_JSON:
-  sensor_side: 'CAM_FRONT'  # Possible values: CAM_FRONT, CAM_FRONT_RIGHT, CAM_FRONT_LEFT, CAM_BACK_RIGHT, CAM_BACK_LEFT
-  visibilities: ['2', '3', '4']  # accepted values: 1, 2, 3, 4
+FUSION:
+  sensor_side: 'FRONT'  # Possible values: FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT, BACK_LEFT
+  show_images: False  # bool. Set as True to display the images or False to save them.
+  fusion_hz: 0  # frames per recond when showing the images. Set as 0 for press to pass image.
+  checkerboard_1600x900_img_path:
   
 BUILD_RECORDS:
   CLASSES:
@@ -47,4 +47,5 @@ BUILD_RECORDS:
 SPLIT_FUSED_IMGS_TO_ZIPS:
   n_dirs: 5
 
-GET_NIGHT_RAIN_VAL:
+COMPARE_3D_AND_2D_BBOXES:
+  camera_side: 'CAM_FRONT'  # Possible values: CAM_FRONT, CAM_FRONT_RIGHT, CAM_FRONT_LEFT, CAM_BACK_RIGHT, CAM_BACK_LEFT
