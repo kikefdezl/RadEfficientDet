@@ -362,6 +362,9 @@ def main(args=None):
     elif args.compute_val_loss and validation_generator is None:
         raise ValueError('When you have no validation data, you should not specify --compute-val-loss.')
 
+    if args.steps == -1:
+        args.steps = None
+
     # start training
     return model.fit_generator(
         generator=train_generator,
