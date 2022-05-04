@@ -86,8 +86,25 @@ class Fuser:
         radar_filename = os.path.join(self.cfg['nuscenes_dir'], radar_filename)
 
         # extracting the radar information from the file. The RadarPointCloud.from_file function returns the following:
-        # FIELDS x y z dyn_prop id rcs vx vy vx_comp vy_comp is_quality_valid ambig_state x_rms y_rms invalid_state pdh0
-        # vx_rms vy_rms
+        # FIELDS
+        # x
+        # y
+        # z
+        # dyn_prop
+        # id
+        # rcs
+        # vx
+        # vy
+        # vx_comp
+        # vy_comp
+        # is_quality_valid
+        # ambig_state
+        # x_rms
+        # y_rms
+        # invalid_state
+        # pdh0
+        # vx_rms
+        # vy_rms
         radar_point_cloud = RadarPointCloud.from_file(radar_filename)
 
         # most of the following code has been taken from nuscenes.py > NuScenesExplorer.map_pointcloud_to_img. It has
@@ -121,9 +138,11 @@ class Fuser:
         points = view_points(radar_point_cloud.points[:3, :], np.array(cs_record['camera_intrinsic']), normalize=True)
 
         mask = np.ones(depths.shape[0], dtype=bool)
-        mask = np.logical_and(mask, depths > min_dist)
+        mask = np.logical_and(mask, depths > min_dist)  # get only detections with more than min distance
+        # filter the detections with y coordinate out of the image
         mask = np.logical_and(mask, points[0, :] > 1)
         mask = np.logical_and(mask, points[0, :] < image.shape[1] - 1)
+        # filter the detections with x coordinate out of the image
         mask = np.logical_and(mask, points[1, :] > 1)
         mask = np.logical_and(mask, points[1, :] < image.shape[0] - 1)
 
@@ -170,13 +189,22 @@ class Fuser:
         return fused_img, camera_filename
 
 
-    def create_radar_maps(self, sample_token, min_dist: float = 1.0, checkerboard_dir=None):
+    def create_radar_maps(self, sample_token, min_dist: float = 1.0):
         sample = self.nusc.get('sample', sample_token)
 
         image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
         camera_filename = os.path.basename(camera_filename)
 
-        # radar_maps = draw_radar_maps(image, points, depths, velocities, n_layers=5)
+        radar_maps = draw_radar_maps(image, points, depths, velocities, n_layers=5)
+
+        return image, radar_maps, camera_filename
+
+    def create_radar_maps_v2(self, sample_token, min_dist: float = 1.0, checkerboard_dir=None):
+        sample = self.nusc.get('sample', sample_token)
+
+        image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
+        camera_filename = os.path.basename(camera_filename)
+
         radar_maps = draw_radar_maps_v2(image, points, depths, velocities, n_layers=5, checkerboard_path=checkerboard_dir)
 
         return image, radar_maps, camera_filename
@@ -219,8 +247,8 @@ def main():
             os.mkdir(saved_imgs_dir)
         for sample_token in tqdm(fuser.get_sample_tokens()):
             # saving the image
-            image, radar_maps, camera_filename = fuser.create_radar_maps(sample_token,
-                                                                         checkerboard_dir=cfg['FUSION']['checkerboard_1600x900_img_path'])
+            image, radar_maps, camera_filename = fuser.create_radar_maps_v2(sample_token,
+                                                    checkerboard_dir=cfg['FUSION']['checkerboard_1600x900_img_path'])
             full_path = os.path.join(saved_imgs_dir, camera_filename)
             cv2.imwrite(full_path, image)
             for idx, map in enumerate(radar_maps):
