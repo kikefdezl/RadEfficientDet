@@ -22,10 +22,11 @@ def evaluate_model(generator, prediction_model, save_path=None):
         total_instances.append(num_annotations)
         precisions.append(average_precision)
 
-        # mean_ap = sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)
+        weighted_mean_ap = sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)
         mean_ap = sum(precisions) / sum(x > 0 for x in total_instances)
 
     print('mAP: {:.4f}'.format(mean_ap))
+    print('mAP (weighted): {:.4f}'.format(weighted_mean_ap))
 
 def create_generators(validation_csv_path, classes_csv_path, phi):
     """
@@ -55,13 +56,13 @@ def create_generators(validation_csv_path, classes_csv_path, phi):
 
 
 def main():
-    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     phi = 0
-    model_checkpoint = "/mnt/TFM_KIKE/code/checkpoints/EXP_D0_RAW_IMGS_AUX/csv_65_0.3385_0.4696.h5"
-    # validation_csv_path = "/mnt/TFM_KIKE/DATASETS/fused_imgs_v3_no_visibility_0/val.csv"
-    validation_csv_path = "/mnt/TFM_KIKE/DATASETS/fused_imgs_v3_no_visibility_0/val_night_rain.csv"
-    classes_csv_path = "/mnt/TFM_KIKE/DATASETS/fused_imgs_v3_no_visibility_0/dataset_encoding.csv"
-    img_save_path = "/mnt/TFM_KIKE/INFERENCES/cam_inf_on_rain/"
+    model_checkpoint = "/mnt/TFM_KIKE/code/checkpoints/EXP_D0_RAW_IMGS_OV4/csv_32_0.3413_0.4081.h5"
+    # validation_csv_path = "/mnt/TFM_KIKE/DATASETS/fused_imgs_v5_only_visibility_4/val.csv"
+    validation_csv_path = "/mnt/TFM_KIKE/DATASETS/fused_imgs_v5_only_visibility_4/val_night_rain.csv"
+    classes_csv_path = "/mnt/TFM_KIKE/DATASETS/fused_imgs_v5_only_visibility_4/dataset_encoding.csv"
+    img_save_path = "/mnt/TFM_KIKE/INFERENCES/cam_infs/"
 
     validation_generator = create_generators(validation_csv_path, classes_csv_path, phi)
     num_classes = validation_generator.num_classes()
