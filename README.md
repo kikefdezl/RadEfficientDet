@@ -1,62 +1,86 @@
-# RadCam-Net
-A Deep Learning architecture for obstacle detection fusing Camera and Radar data.
+# RadEfficientDet
+A Deep Learning architecture for obstacle detection fusing Camera and Radar data based on EfficientDet. This project
+is based on [the Keras implementation of EfficientDet by xuannianz](https://github.com/xuannianz/EfficientDet) and is
+trained using the [Nuscenes dataset](https://www.nuscenes.org/).
 
-![RadEfficientDet Diagram](images/radefficientdet_diagram_v4.jpg?raw=true "Title")
+![](images/radefficientdet_diagram_v4.jpg)
+
+In RadEfficientDet, the radar detections are split into 5 different intervals, depending on the distance of the detection.
+These detections are then represented as images and are input into EfficientDet before the Bi-FPN section.
+
+The full process to train RadEfficientDet on NuScenes goes as follows:
+
+![](images/radefficientdet_training_flowchart.png)
 
 ## Requirements:
-- Python 3.7
+- Python 3.8
 - [Nuscenes dataset](https://www.nuscenes.org/)
-- Nuscenes-devkit `pip install nuscenes-devkit` 
-- Tensorflow (+ Keras) `pip install tensorflow` `pip install tensorflow_datasets`
-- Matplotlib `pip install matplotlib`
-- OpenCV `pip install opencv_python`
-- Sklearn `pip install sklearn`
-- PyQuaternion `pip install pyquaternion`
-- TQDM `pip install tqdm`
-- Cache Tools `pip install cachetools`
+- Dependencies in **requirements.txt**
 
-To install all dependencies automatically:
+To install the dependencies automatically:
 `pip install -r requirements.txt`
 
 
-# 1.- Generate fused data
+# 1. Setup config.yaml
+
+To setup the data, training and directory structure configuration, we apply our changes to the config.yaml file. The
+most important parameters to change are:
+
+nuscenes_dir: Directory where the NuScenes database is located
+dataset_version: Choose between 'v1.0-mini' or 'v1.0-trainval'
+dataset_save_dir: Where to save new images and files for the current dataset you're working on.
 
 The first step is to generate images that include the radar data. To do so, we must access all the camera images in the nuscenes dataset, project the radar data onto them, and save them to a directory.
 
-### 1.1- Set-up environment variables
+# 2. Generate radar images
 
-For the scripts to find the NuScenes database on your computer, it is necessary to set up an environment variable in
-your OS called 'NUSCENES_DIR' pointing to the NuScenes dataset folder location.
+Change any parameters in the **FUSION** section of the config.yaml file, and run:
 
-`e.g.: NUSCENES_DIR = C:/Data/NuScenes`
+`python3 dataset_preprocessing/fusion.py`
 
-### 1.2- Run dataset_preprocessing/fusion.py
+This will create the new images with the desired configuration and will save them to your dataset_save_dir. If show_images
+is set to True in the config file, the images will be displayed on a window instead of being saved.
 
-Inside the config.py file, make sure you change the show_images (True / False) and dataset_version ('mini' / 'trainval') variables. This allows you to
-select whether to view or save the images, as well as whether to use the sample dataset or the complete one.
+# 3. Generate JSON file with 2D bounding box annotations
 
-`e.g.: 
-fusion_show_images = False;
-dataset_version = 'v1.0-trainval'
-`
+The NuScenes dataset is annotated in 3D, but we need 2D annotations for this architecture. Thankfully, the nuScenes SDK
+provides a script to project these annotations automatically. This has some inconveniences though (untight bounding 
+boxes and objects without visibility).
 
-This example would save the images of the complete dataset.
+To generate the JSON file in your dataset_save_dir:
 
-### 1.3- Generate JSON file with the 2D bounding boxes
+`python3 dataset_preprocessing/export_2d_annotations_as_json.py`
 
-By default, the NuScenes dataset provides 3D bounding boxes of the objects. However, RetinaNet uses 2D bounding boxes for object
-detection, so a bounding box projection must be performed. To do so, the NuScenes python-SDK provides a useful file:
-[export_2d_annotations_as_json.py](https://github.com/nutonomy/nuscenes-devkit/blob/master/python-sdk/nuscenes/scripts/export_2d_annotations_as_json.py). Run this file to generate
-the JSON file with the 2D bounding box coordinates.
+# 4. Generate dataset CSV file
 
-`$python -m nn_models.preprocessing.export_2d_annotations_as_json`
+This architecture uses a generator to import the data into the network when training. Said generator requires a CSV file
+with one annotation per line. We can create said CSV file by running:
 
-Remember to set the dataset version to v1.0-mini or v1.0-trainval to export the annotations for the sample or complete dataset accordingly.
+`python3 dataset_preprocessing/generate_dataset_csv.py`
 
-### 1.4- Generate the dataset CSV file for RetinaNet
+# 5. Train the network
 
-Retina has a built-in dataset generator to import the images and annotations automatically. CSV files with the annotations and the label encoding must be generated the following way:
+The `Radar` directory contains all the files pertaining to RadEfficientDet.
 
-`$python -m nn_models.preprocessing.generate_dataset_csv`
+The `Camera` directory contains all the files pertaining to EfficientDet.
 
-As before, this can be done for the v1.0-mini or v1.0-trainval datasets.
+Both are fully included for comparison purposes. We can thus train both the Radar-Fusion model and the
+Camera-only baseline to compare the evaluation results between them.
+
+To train any of the networks, run:
+
+`python3 Radar/train.py`
+
+or
+
+`python3 Camera/train.py`
+
+# 6. Evaluate the results
+
+To evaluate the performance of your checkpoint:
+
+`python3 Radar/rad_evaluate.py`
+
+or 
+
+`python3 Camera/cam_evaluate.py`
