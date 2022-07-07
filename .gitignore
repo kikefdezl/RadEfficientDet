@@ -1,6 +1,3 @@
-### MEDIA FILES ###
-*.png
-
 ### IDE / MACHINE SPECIFIC ###
 venv/
 .idea/

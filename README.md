@@ -1,7 +1,9 @@
 # RadCam-Net
-A Deep Learning project for obstacle detection fusing Camera and Radar data.
+A Deep Learning architecture for obstacle detection fusing Camera and Radar data.
 
-# Requirements:
+![RadEfficientDet Diagram](images/radefficientdet_diagram_v4.jpg?raw=true "Title")
+
+## Requirements:
 - Python 3.7
 - [Nuscenes dataset](https://www.nuscenes.org/)
 - Nuscenes-devkit `pip install nuscenes-devkit` 

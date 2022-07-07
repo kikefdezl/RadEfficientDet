@@ -1,6 +1,6 @@
-nuscenes_dir: 'D:/data/nuscenes'
+nuscenes_dir: "D:/data/nuscenes"
 dataset_version: 'v1.0-mini'  # v1.0-mini or v1.0-trainval
-dataset_save_dir: 'C:/Users/Kike/Documents/tmp_nuscenes_dataset'
+dataset_save_dir: "D:/data/nuscenes/datasets/tmp_test"
 
 EXPORT_2D_ANNOTATIONS_AS_JSON:
   sensor_side: 'CAM_FRONT'  # Possible values: CAM_FRONT, CAM_FRONT_RIGHT, CAM_FRONT_LEFT, CAM_BACK_RIGHT, CAM_BACK_LEFT
@@ -14,9 +14,11 @@ GENERATE_DATASET_CSV:
 
 FUSION:
   sensor_side: 'FRONT'  # Possible values: FRONT, FRONT_RIGHT, FRONT_LEFT, BACK_RIGHT, BACK_LEFT
+  fusion_type: 'radar_maps'  # Possible values: overlay, radar_maps
+  max_distance: 10000  # Maximum distance to render a radar detection. Detections that are further away won't be rendered. At the moment this is only valid for the 'overlay' fusion type.
   show_images: False  # bool. Set as True to display the images or False to save them.
   fusion_hz: 0  # frames per recond when showing the images. Set as 0 for press to pass image.
-  checkerboard_1600x900_img_path:
+  checkerboard_1600x900_img_path: "D:/data/nuscenes/datasets/tmp_test/checkerboard.png"
   
 BUILD_RECORDS:
   CLASSES:

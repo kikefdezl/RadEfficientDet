@@ -5,7 +5,7 @@ def main():
     image_height = 900
     image_width = 1600
     checker_size = 4
-    save_path = "/mnt/TFM_KIKE/DATASETS/fused_imgs_v4_no_visibility_0/checkerboard1.png"
+    save_path = "D:/data/nuscenes/datasets/tmp_test/checkerboard.png"
 
     image = np.zeros((image_height, image_width))
 

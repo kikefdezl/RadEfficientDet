@@ -82,6 +82,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
     for i in progressbar.progressbar(range(generator.size()), prefix='Running network: '):
         image = generator.load_image(i)
         src_image = image.copy()
+        src_image = cv2.cvtColor(src_image, cv2.COLOR_BGR2RGB)
         h, w = image.shape[:2]
 
         anchors = generator.anchors

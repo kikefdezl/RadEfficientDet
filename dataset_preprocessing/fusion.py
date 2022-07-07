@@ -12,6 +12,7 @@ import shutil
 
 # local libraries
 from image_graphics import draw_overlay, draw_overlay_v2, draw_radar_maps, draw_radar_maps_v2
+import image_graphics
 from nuscenes.nuscenes import NuScenes, NuScenesExplorer
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points
@@ -152,7 +153,7 @@ class Fuser:
 
         return image, points, depths, velocities, cam_filename
 
-    def overlay_radar_data(self, sample_token, min_dist: float = 1.0):
+    def overlay_radar_data(self, sample_token, min_dist: float = 1.0, max_dist = 1e09):
         """
         Args:
             sample_token: single Sample token of the database
@@ -166,11 +167,11 @@ class Fuser:
         image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
         camera_filename = os.path.basename(camera_filename)
 
-        fused_img = draw_overlay(image, points, depths, velocities)
+        fused_img = draw_overlay(image, points, depths, velocities, max_distance=max_dist)
 
         return fused_img, camera_filename
 
-    def overlay_radar_data_v2(self, sample_token, min_dist: float = 1.0):
+    def overlay_radar_data_v2(self, sample_token, min_dist: float = 1.0, max_dist = 1e09):
         """
         Args:
             sample_token: single Sample token of the database
@@ -184,7 +185,7 @@ class Fuser:
         image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
         camera_filename = os.path.basename(camera_filename)
 
-        fused_img = draw_overlay_v2(image, points, depths, velocities)
+        fused_img = draw_overlay_v2(image, points, depths, velocities, max_distance=max_dist)
 
         return fused_img, camera_filename
 
@@ -209,6 +210,16 @@ class Fuser:
 
         return image, radar_maps, camera_filename
 
+    def create_radar_maps_test(self, sample_token, min_dist: float = 1.0, checkerboard_dir=None):
+        sample = self.nusc.get('sample', sample_token)
+
+        image, points, depths, velocities, camera_filename = self._get_sample_data(sample, min_dist)
+        camera_filename = os.path.basename(camera_filename)
+
+        radar_maps = image_graphics.draw_radar_maps_test(image, points, depths, velocities, n_layers=5, checkerboard_path=checkerboard_dir)
+
+        return image, radar_maps, camera_filename
+
     def get_sample_tokens(self):
         return self.list_of_sample_tokens
 
@@ -226,8 +237,11 @@ def main():
     fuser = Fuser(nusc, config=cfg)
     dataset_save_dir = cfg['dataset_save_dir']
 
-    # loop through all the samples to fuse their data.
     show_imgs = cfg['FUSION']['show_images']
+    max_distance = cfg['FUSION']['max_distance']
+    fusion_type = cfg['FUSION']['fusion_type']
+    assert fusion_type in ['overlay', 'radar_maps'], "Fusion type must be 'overlay' or 'radar_maps'"
+
     # if show_imgs = True, render the images on screen
     if show_imgs:
         fusion_hz = cfg['FUSION']['fusion_hz']
@@ -245,22 +259,24 @@ def main():
         else:
             shutil.rmtree(saved_imgs_dir)
             os.mkdir(saved_imgs_dir)
-        for sample_token in tqdm(fuser.get_sample_tokens()):
-            # saving the image
-            image, radar_maps, camera_filename = fuser.create_radar_maps_v2(sample_token,
-                                                    checkerboard_dir=cfg['FUSION']['checkerboard_1600x900_img_path'])
-            full_path = os.path.join(saved_imgs_dir, camera_filename)
-            cv2.imwrite(full_path, image)
-            for idx, map in enumerate(radar_maps):
-                map = cv2.cvtColor(map, cv2.COLOR_BGR2GRAY)
-                full_path_map = os.path.splitext(full_path)[0] + f'_radar_P{7-idx}.jpg'
-                cv2.imwrite(full_path_map, map)
 
-        # for sample_token in tqdm(fuser.get_sample_tokens()):
-        #     fused_image, camera_filename = fuser.overlay_radar_data_v2(sample_token)
-        #     # saving the image
-        #     full_path = os.path.join(saved_imgs_dir, os.path.basename(camera_filename))
-        #     cv2.imwrite(full_path, fused_image)
+        if fusion_type == 'radar_maps':
+            for sample_token in tqdm(fuser.get_sample_tokens()):
+                # saving the image
+                image, radar_maps, camera_filename = fuser.create_radar_maps_test(sample_token,
+                                                        checkerboard_dir=cfg['FUSION']['checkerboard_1600x900_img_path'])
+                full_path = os.path.join(saved_imgs_dir, camera_filename)
+                cv2.imwrite(full_path, image)
+                for idx, map in enumerate(radar_maps):
+                    # map = cv2.cvtColor(map, cv2.COLOR_BGR2GRAY)
+                    full_path_map = os.path.splitext(full_path)[0] + f'_radar_P{7-idx}.jpg'
+                    cv2.imwrite(full_path_map, map)
+        elif fusion_type == 'overlay':
+            for sample_token in tqdm(fuser.get_sample_tokens()):
+                fused_image, camera_filename = fuser.overlay_radar_data(sample_token, max_dist=max_distance)
+                # saving the image
+                full_path = os.path.join(saved_imgs_dir, os.path.basename(camera_filename))
+                cv2.imwrite(full_path, fused_image)
 
 if __name__ == "__main__":
     main()

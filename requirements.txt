@@ -1,9 +1,9 @@
-nuscenes-devkit
-tensorflow
-matplotlib
-opencv_python
+nuscenes-devkit==1.1.9
+tensorflow==2.8.0
+matplotlib==3.3.3
+opencv_python==4.5.1.48
 sklearn
-pyquaternion
-tqdm
-cachetools
-pyyaml
+pyquaternion==0.9.9
+tqdm==4.56.2
+cachetools==4.1.1
+pyyaml==6.0

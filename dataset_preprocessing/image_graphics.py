@@ -10,30 +10,31 @@ import numpy as np
 from math import atan, cos, sin, pi
 
 
-def draw_overlay(image, points, depths, velocities):
+def draw_overlay(image, points, depths, velocities, max_distance=1e09):
     points = points.transpose()
 
     new_img = image
     for i, point in enumerate(points):
-        point_x, point_y, point_z = point.astype(int)
-        vel_x, vel_y = velocities[:, i]
-        new_img = draw_depth_circle(image, point_x, point_y, depths[i])
-        new_img = draw_depth_vector(new_img, point_x, point_y, depths[i], vel_x, vel_y)
+        if depths[i] < max_distance:
+            point_x, point_y, point_z = point.astype(int)
+            vel_x, vel_y = velocities[:, i]
+            new_img = draw_depth_circle(image, point_x, point_y, depths[i])
+            new_img = draw_depth_vector(new_img, point_x, point_y, depths[i], vel_x, vel_y)
 
     return new_img
 
-def draw_overlay_v2(image, points, depths, velocities):
-    # TODO: IMPLEMENT SMARTER VERSION OF DRAW OVERLAY
+def draw_overlay_v2(image, points, depths, velocities, max_distance=1e09):
     points = points.transpose()
     velocities = velocities.transpose()
 
     overlay = image.copy()
     for point, depth, velocity in zip(points, depths, velocities):
-        point_x, point_y, point_z = point.astype(int)
-        vel_x, vel_y = velocity
-        radius = int(250/depth)
-        overlay = draw_depth_circle(overlay, point_x, point_y, depth, radius)
-        overlay = draw_depth_vector(overlay, point_x, point_y, depth, vel_x, vel_y)
+        if depth < max_distance:
+            point_x, point_y, point_z = point.astype(int)
+            vel_x, vel_y = velocity
+            radius = int(250/depth)
+            overlay = draw_depth_circle(overlay, point_x, point_y, depth, radius)
+            overlay = draw_depth_vector(overlay, point_x, point_y, depth, vel_x, vel_y)
 
     new_img = cv2.addWeighted(overlay, 0.5, image, 0.5, 0)
 
@@ -63,8 +64,8 @@ def draw_radar_maps(image, points, depths, velocities, n_layers=5, radar_range=(
             point_x, point_y, point_z = point.astype(int)
             vel_x, vel_y = velocity
             radius = 25
-            map = draw_white_circle(map, point_x, point_y, radius)
-            map = draw_white_vector(map, point_x, point_y, vel_x, vel_y)
+            map = draw_circle(map, point_x, point_y, radius)
+            map = draw_vector(map, point_x, point_y, vel_x, vel_y)
 
         maps.append(map)
 
@@ -98,8 +99,8 @@ def draw_radar_maps_v2(image, points, depths, velocities, n_layers=5, radar_rang
             point_x, point_y, point_z = point.astype(int)
             vel_x, vel_y = velocity
             radius = int(256 // depth)
-            map = draw_white_circle(map, point_x, point_y, radius)
-            map = draw_white_vector(map, point_x, point_y, vel_x, vel_y)
+            map = draw_circle(map, point_x, point_y, radius)
+            map = draw_vector(map, point_x, point_y, vel_x, vel_y)
         if checkerboard_path:
             map = cv2.bitwise_and(checkerboard_img, map)
 
@@ -107,8 +108,103 @@ def draw_radar_maps_v2(image, points, depths, velocities, n_layers=5, radar_rang
 
     return maps
 
-    # return maps
+def draw_radar_maps_v3(image, points, depths, velocities, n_layers=5, radar_range=(0, 250), checkerboard_path=None):
 
+    """
+    Function that creates 5 radar maps for different distances. Drawn as circles, where the size is calculated to be 1
+    meter in diameter on the object its detecting.
+    NuScenes camera has a 5.5mm focal length, 7.2mm horizontal sensor size, and a 1600px horizontal resolution. The
+    funtion obtain the number of pixels for a 1 meter object on the image is:
+
+    n_pix = (0.0055 x 1600)/(distance x 0.0072)
+
+    :param image: TODO
+    :param points: TODO
+    :param depths: TODO
+    :param velocities: TODO
+    :param n_layers: TODO
+    :param radar_range: TODO
+    :param checkerboard_path: TODO
+    :return: TODO
+    """
+    points = points.transpose()
+    velocities = velocities.transpose()
+    # divide the 0-250m range exponentially
+    n_divisions = sum([2 ** i for i in range(n_layers - 1)])
+    meters_per_division = radar_range[1] / n_divisions
+    values = [(2 ** i) * meters_per_division for i in range(n_layers - 1)]
+    values.insert(0, 0.0)
+    values.append(99999999.9)
+    if checkerboard_path:
+        checkerboard_img = cv2.imread(checkerboard_path)
+
+    image_h = image.shape[0]
+    image_w = image.shape[1]
+    maps = []
+    for idx, val in enumerate(values[1:]):
+        applicables = [(depth < val) and (depth > values[idx]) for depth in depths]
+        applicable_depths = depths[applicables]
+        applicable_points = points[applicables]
+        applicable_velocities = velocities[applicables]
+
+        map = np.zeros((image_h, image_w, 3), np.uint8)
+        for point, depth, velocity in zip(applicable_points, applicable_depths, applicable_velocities):
+            point_x, point_y, point_z = point.astype(int)
+            vel_x, vel_y = velocity
+            radius = int((0.0055 * 1600)/(2 * 0.0072 * depth))
+            point_y -= radius
+            map = draw_circle(map, point_x, point_y, radius)
+            map = draw_vector(map, point_x, point_y, vel_x, vel_y)
+        if checkerboard_path:
+            map = cv2.bitwise_and(checkerboard_img, map)
+        image = cv2.bitwise_or(map, image)
+
+        maps.append(map)
+
+    return maps
+
+
+def draw_radar_maps_test(image, points, depths, velocities, n_layers=5, radar_range=(0, 250), checkerboard_path=None):
+    """
+    This function is for testing purposes
+
+    n_pix = (0.0055 x 1600)/(distance x 0.0072)
+    """
+    points = points.transpose()
+    velocities = velocities.transpose()
+    # divide the 0-250m range exponentially
+    n_divisions = sum([2 ** i for i in range(n_layers - 1)])
+    meters_per_division = radar_range[1] / n_divisions
+    values = [(2 ** i) * meters_per_division for i in range(n_layers - 1)]
+    values.insert(0, 0.0)
+    values.append(99999999.9)
+    if checkerboard_path:
+        checkerboard_img = cv2.imread(checkerboard_path)
+
+    image_h = image.shape[0]
+    image_w = image.shape[1]
+    maps = []
+    for idx, val in enumerate(values[1:]):
+        applicables = [(depth < val) and (depth > values[idx]) for depth in depths]
+        applicable_depths = depths[applicables]
+        applicable_points = points[applicables]
+        applicable_velocities = velocities[applicables]
+
+        map = np.zeros((image_h, image_w, 3), np.uint8)
+        for point, depth, velocity in zip(applicable_points, applicable_depths, applicable_velocities):
+            point_x, point_y, point_z = point.astype(int)
+            vel_x, vel_y = velocity
+            radius = int((0.0055 * 1600)/(2 * 0.0072 * depth))
+            point_y -= radius
+            map = draw_circle(map, point_x, point_y, radius, color=(255, 255, 255))
+            # map = draw_white_vector(map, point_x, point_y, vel_x, vel_y)
+        if checkerboard_path:
+            map = cv2.bitwise_and(checkerboard_img, map)
+        image = cv2.bitwise_or(map, image)
+
+        maps.append(map)
+
+    return maps
 
 
 def draw_depth_circle(image, point_x, point_y, depth, radius: int = 4):
@@ -130,7 +226,7 @@ def draw_depth_circle(image, point_x, point_y, depth, radius: int = 4):
 
     return new_img
 
-def draw_white_circle(image, point_x, point_y, radius: int = 4):
+def draw_circle(image, point_x, point_y, radius: int = 4, color=(255, 255, 255)):
     """
     Draws a circle on an image, and returns the new image
     Args:
@@ -143,7 +239,7 @@ def draw_white_circle(image, point_x, point_y, radius: int = 4):
     Returns:
         new_img: modified image
     """
-    new_img = cv2.circle(image, (point_x, point_y), radius, (255, 255, 255), -1)
+    new_img = cv2.circle(image, (point_x, point_y), radius, color, -1)
 
     return new_img
 
@@ -190,7 +286,7 @@ def draw_depth_vector(image, point_x, point_y, depth, vel_x, vel_y, thickness: i
 
     return new_img
 
-def draw_white_vector(image, point_x, point_y, vel_x, vel_y, thickness: int = 2):
+def draw_vector(image, point_x, point_y, vel_x, vel_y, color=(255, 255, 255), thickness: int = 2):
     """
     Draws a vector showing the velocity of the point on the image
     Args:
@@ -211,7 +307,7 @@ def draw_white_vector(image, point_x, point_y, vel_x, vel_y, thickness: int = 2)
 
     pt1 = (point_x, point_y)
     pt2 = (point_x + vec_x_size, point_y + vec_y_size)
-    new_img = cv2.line(image, pt1, pt2, (255, 255, 255), thickness)
+    new_img = cv2.line(image, pt1, pt2, color, thickness)
 
     vec_size = np.sqrt(vec_x_size ** 2 + vec_y_size ** 2)
 

@@ -4,8 +4,11 @@ import os
 
 def main():
     camera_images_dir = "/mnt/TFM_KIKE/INFERENCES/cam_inf_on_rain/"
-    radar_images_dir = "/mnt/TFM_KIKE/INFERENCES/rad_inf_on_rain/"
+    radar_images_dir = "/mnt/TFM_KIKE/INFERENCES/rad_inf_on_rain_concat/"
     save_dir = "/mnt/TFM_KIKE/INFERENCES/inf_merged/"
+
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
 
     for image in tqdm(os.listdir(radar_images_dir)):
         image_cam_path = os.path.join(camera_images_dir, image)
